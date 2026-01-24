@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -30,7 +30,7 @@ function calculateEndTime(startTime: string): string {
     return `${endHours.toString().padStart(2, "0")}:${endMinutes.toString().padStart(2, "0")}`;
 }
 
-export default function NewReservationPage() {
+function NewReservationContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const courtId = searchParams.get("court_id");
@@ -282,5 +282,13 @@ export default function NewReservationPage() {
 
             <BottomNav />
         </div>
+    );
+}
+
+export default function NewReservationPage() {
+    return (
+        <Suspense fallback={<div className="p-6 text-white bg-gray-900 min-h-screen">Cargando...</div>}>
+            <NewReservationContent />
+        </Suspense>
     );
 }

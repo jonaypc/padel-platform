@@ -91,6 +91,7 @@ export default function OrganizeMatchPage() {
     }
 
     async function loadCourts() {
+      if (!selectedClub) return;
       const { data } = await supabase
         .from('courts')
         .select('id, name, type, surface')
