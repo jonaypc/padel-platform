@@ -1,0 +1,211 @@
+ROADMAP CANÓNICO – PÁDEL APP
+Versión: 1.0
+Estado: Activo
+
+Rol del asistente:
+Product Manager técnico y guía de desarrollo de una aplicación de pádel.
+Explica todo paso a paso, sin asumir conocimientos técnicos, priorizando simplicidad, coherencia y orden lógico.
+
+---
+
+VISIÓN DEL PRODUCTO
+
+Plataforma digital para jugadores de pádel que permite registrar partidos, consultar historial y analizar su evolución como jugador.
+
+Estrategia de producto:
+Primero utilidad individual.
+Después interacción social.
+Finalmente ecosistema (clubs, reservas, red social).
+
+---
+
+FILOSOFÍA DE DESARROLLO
+
+- Ir lento pero seguro.
+- Un feature terminado antes de empezar otro.
+- Código simple es mejor que código perfecto.
+- Primero funcionalidad, luego estética.
+- Evitar sobreingeniería.
+- Explicar siempre qué se hace y por qué.
+- Proponer siempre el siguiente paso lógico.
+- Mantener coherencia técnica y de producto.
+
+---
+
+STACK TECNOLÓGICO (DECISIONES CERRADAS)
+
+Framework: Next.js (App Router)
+Lenguaje: TypeScript
+Frontend: React + Tailwind CSS
+Backend: Supabase
+Autenticación: Supabase Auth (email y contraseña)
+Base de datos: PostgreSQL (Supabase)
+Arquitectura: src/app
+Gestión de estado: React local (useState, useEffect)
+
+Estas decisiones no se revisan salvo causa mayor.
+
+---
+
+ESTRUCTURA DEL PROYECTO
+
+src/app
+- page.tsx → Landing
+- login/page.tsx → Login y registro
+- app/page.tsx → Dashboard protegido
+- new-match/page.tsx → Crear partido
+- matches/page.tsx → Historial de partidos
+- matches/[id]/page.tsx → Detalle de partido
+- stats/page.tsx → Estadísticas del jugador
+
+---
+
+SEGURIDAD
+
+- Autenticación con Supabase Auth.
+- Rutas protegidas comprobando sesión.
+- Row Level Security (RLS) activado.
+- Cada usuario solo puede acceder a sus propios datos.
+- La seguridad no depende del frontend.
+
+---
+
+BASE DE DATOS: TABLA matches
+
+Campos principales:
+
+id (uuid)
+user_id (uuid, auth.users)
+played_at
+match_type (pachanga, entrenamiento, liga, torneo)
+location
+partner_name
+opponent1_name
+opponent2_name
+
+Sets:
+set1_us, set1_them
+set2_us, set2_them
+set3_us, set3_them
+
+Sensaciones:
+overall_feeling
+physical_feeling
+mental_feeling
+notes
+
+created_at
+
+---
+
+FUNCIONALIDADES IMPLEMENTADAS
+
+Hito 1 – Autenticación
+- Registro de usuario
+- Login
+- Logout
+- Redirecciones correctas
+
+Hito 2 – Registro de partidos
+- Formulario completo
+- Guardado en base de datos
+- Validaciones básicas
+
+Hito 3 – Historial de partidos
+- Listado de partidos del usuario
+- Ordenados por fecha
+- Acceso a detalle
+
+Hito 4 – Detalle de partido
+- Resultado
+- Sets
+- Datos completos del partido
+- Sensaciones
+- Cálculo de victoria o derrota
+
+Hito 5 – Gestión
+- Borrado de partidos
+- Seguridad RLS correcta
+- Flujo completo estable y funcional
+
+---
+
+HITO 6 – ESTADÍSTICAS DEL JUGADOR (ACTUAL)
+
+Ruta: /stats
+
+Objetivo:
+Mostrar al jugador su rendimiento de forma clara y útil.
+
+Alcance MVP:
+- Partidos jugados
+- Victorias y derrotas
+- Porcentaje de victorias
+- Racha actual
+- Estadísticas por tipo de partido
+
+Decisiones técnicas:
+- Cálculos en frontend.
+- Una única consulta a la tabla matches.
+- No usar vistas SQL ni funciones RPC.
+- Priorizar simplicidad.
+
+---
+
+SIGUIENTES HITOS (ORDEN OBLIGATORIO)
+
+Hito 6.1 – Estadísticas por rango temporal
+- Últimos 30 días
+- Últimos 90 días
+- Este mes
+- Todo el historial
+
+Hito 6.2 – Visualización
+- Gráficas simples
+- Evolución temporal
+- Sin librerías complejas
+
+Hito 7 – Estadísticas avanzadas
+- Rendimiento por pareja
+- Rendimiento por ubicación
+- Sets ganados y perdidos
+- Tendencias
+
+Hito 8 – Rankings
+- Ranking personal
+- Más adelante ranking global
+
+Hito 9 – Interacción entre jugadores
+- Invitar jugadores
+- Compartir resultados
+
+Hito 10 – Organización de partidos
+- Crear partidos compartidos
+- Confirmaciones
+- Historial común
+
+Hito 11 – Clubs y reservas
+- Gestión de pistas
+- Reservas
+- Relación club-jugador
+
+Hito 12 – Capa social
+- Feed
+- Comentarios
+- Likes
+- Perfil público opcional
+
+---
+
+NORMA DE ORO
+
+Nunca se salta un hito sin terminar el anterior.
+Nunca se añade complejidad sin una necesidad clara.
+
+---
+
+USO DEL ROADMAP
+
+Este documento es la fuente de verdad del proyecto.
+Cualquier conversación nueva debe asumir este roadmap como contexto base.
+El asistente debe respetar el orden, las decisiones técnicas y la filosofía aquí definidas.
