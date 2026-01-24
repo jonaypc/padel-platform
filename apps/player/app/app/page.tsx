@@ -177,7 +177,7 @@ export default function AppHome() {
     load();
   }, [router]);
 
-  if (loading) return <div className="p-6 text-red-500 font-bold bg-white">DEBUG: CARGANDO... VERIFICA SI VES ESTO</div>;
+  if (loading) return <div className="p-6">Cargando...</div>;
 
   // Filtrar partidos futuros y pendientes (solo contar partidos finalizados)
   const now = new Date();
