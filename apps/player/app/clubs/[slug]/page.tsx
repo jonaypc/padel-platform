@@ -205,9 +205,15 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
         const current = new Date(selectedDate);
         current.setHours(startHour, 0, 0, 0);
 
-        while (current.getHours() < endHour) {
+        const endDateTime = new Date(selectedDate);
+        endDateTime.setHours(endHour, 0, 0, 0);
+
+        // Protección contra bucles infinitos: duración mínima 30 mins
+        const duration = Math.max(club.booking_duration || 60, 30);
+
+        while (current < endDateTime) {
             timeSlots.push(new Date(current));
-            current.setMinutes(current.getMinutes() + club.booking_duration);
+            current.setMinutes(current.getMinutes() + duration);
         }
     }
 
