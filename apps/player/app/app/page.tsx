@@ -147,31 +147,35 @@ export default function AppHome() {
 
   useEffect(() => {
     async function load() {
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) {
-        router.replace("/login");
-        return;
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (!sessionData.session) {
+          router.replace("/login");
+          return;
+        }
+
+        // Obtener nombre del usuario del email (parte antes del @)
+        const email = sessionData.session.user.email || "";
+        const name = email.split("@")[0];
+        setUserName(name.charAt(0).toUpperCase() + name.slice(1));
+
+        // Cargar partidos recientes para estadísticas (últimos 50)
+        const { data: matchesData } = await supabase
+          .from("matches")
+          .select(
+            "id, played_at, match_type, partner_name, location, set1_us, set1_them, set2_us, set2_them, set3_us, set3_them, notes"
+          )
+          .order("played_at", { ascending: false })
+          .limit(50);
+
+        if (matchesData) {
+          setMatches(matchesData as MatchRow[]);
+        }
+      } catch (err) {
+        console.error("Error loading home:", err);
+      } finally {
+        setLoading(false);
       }
-
-      // Obtener nombre del usuario del email (parte antes del @)
-      const email = sessionData.session.user.email || "";
-      const name = email.split("@")[0];
-      setUserName(name.charAt(0).toUpperCase() + name.slice(1));
-
-      // Cargar partidos recientes para estadísticas (últimos 50)
-      const { data: matchesData } = await supabase
-        .from("matches")
-        .select(
-          "id, played_at, match_type, partner_name, location, set1_us, set1_them, set2_us, set2_them, set3_us, set3_them, notes"
-        )
-        .order("played_at", { ascending: false })
-        .limit(50);
-
-      if (matchesData) {
-        setMatches(matchesData as MatchRow[]);
-      }
-
-      setLoading(false);
     }
 
     load();
