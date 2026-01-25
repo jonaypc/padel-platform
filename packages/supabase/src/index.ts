@@ -4,17 +4,25 @@ import type { Profile } from '@padel/core';
 let client: SupabaseClient | null = null;
 
 // Cliente básico para SPA (Client Components) - SINGLETON
-export const createBrowserClient = () => {
+export const createBrowserClient = (): SupabaseClient => {
+    // Return existing client if available
     if (client) return client;
 
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
     if (!url || !key) {
+        console.error('Supabase config missing:', { hasUrl: !!url, hasKey: !!key });
         throw new Error('Supabase URL or Anon Key is missing in environment variables');
     }
 
-    client = createClient(url, key);
+    client = createClient(url, key, {
+        auth: {
+            persistSession: typeof window !== 'undefined',
+            autoRefreshToken: true,
+        }
+    });
+    
     return client;
 };
 
