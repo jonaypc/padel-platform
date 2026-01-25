@@ -386,41 +386,45 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
 
             {/* Modal Selección de Pista */}
             {selectingCourt && (
-                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200 overflow-y-auto" onClick={() => setSelectingCourt(null)}>
-                    <div className="bg-gray-800 w-full max-w-sm rounded-2xl border border-gray-700 shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-300 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-                        <div className="p-6">
-                            <h3 className="text-xl font-bold text-white mb-2">Selecciona Pista</h3>
-                            <p className="text-gray-400 text-sm mb-4">
-                                {selectingCourt.time.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })} - {selectingCourt.courts.length} pistas disponibles
-                            </p>
+                <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setSelectingCourt(null)}>
+                    <div className="h-full overflow-y-auto py-4 px-4">
+                        <div className="min-h-full flex items-end sm:items-center justify-center">
+                            <div className="bg-gray-800 w-full max-w-sm rounded-2xl border border-gray-700 shadow-2xl animate-in slide-in-from-bottom duration-300 my-auto" onClick={e => e.stopPropagation()}>
+                                <div className="p-6">
+                                    <h3 className="text-xl font-bold text-white mb-2">Selecciona Pista</h3>
+                                    <p className="text-gray-400 text-sm mb-4">
+                                        {selectingCourt.time.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })} - {selectingCourt.courts.length} pistas disponibles
+                                    </p>
 
-                            <div className="space-y-2">
-                                {selectingCourt.courts.map(court => (
+                                    <div className="space-y-2 max-h-[50vh] overflow-y-auto">
+                                        {selectingCourt.courts.map(court => (
+                                            <button
+                                                key={court.id}
+                                                onClick={() => {
+                                                    setSelectedSlot({ court, time: selectingCourt.time });
+                                                    setSelectingCourt(null);
+                                                }}
+                                                className="w-full bg-gray-900 hover:bg-gray-700 border border-gray-700 hover:border-green-500 rounded-xl p-4 text-left transition group"
+                                            >
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <p className="text-white font-semibold group-hover:text-green-400">{court.name}</p>
+                                                        <p className="text-xs text-gray-500">{court.type}</p>
+                                                    </div>
+                                                    <ChevronRight className="text-gray-600 group-hover:text-green-500" size={20} />
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+
                                     <button
-                                        key={court.id}
-                                        onClick={() => {
-                                            setSelectedSlot({ court, time: selectingCourt.time });
-                                            setSelectingCourt(null);
-                                        }}
-                                        className="w-full bg-gray-900 hover:bg-gray-700 border border-gray-700 hover:border-green-500 rounded-xl p-4 text-left transition group"
+                                        onClick={() => setSelectingCourt(null)}
+                                        className="w-full mt-4 bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3 rounded-xl transition"
                                     >
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <p className="text-white font-semibold group-hover:text-green-400">{court.name}</p>
-                                                <p className="text-xs text-gray-500">{court.type}</p>
-                                            </div>
-                                            <ChevronRight className="text-gray-600 group-hover:text-green-500" size={20} />
-                                        </div>
+                                        Cancelar
                                     </button>
-                                ))}
+                                </div>
                             </div>
-
-                            <button
-                                onClick={() => setSelectingCourt(null)}
-                                className="w-full mt-4 bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3 rounded-xl transition"
-                            >
-                                Cancelar
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -428,9 +432,11 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
 
             {/* Modal Confirmación */}
             {selectedSlot && (
-                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200 overflow-y-auto">
-                    <div className="bg-gray-800 w-full max-w-sm rounded-2xl border border-gray-700 shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-300 max-h-[90vh] overflow-y-auto">
-                        <div className="p-6">
+                <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="h-full overflow-y-auto py-4 px-4">
+                        <div className="min-h-full flex items-end sm:items-center justify-center">
+                            <div className="bg-gray-800 w-full max-w-sm rounded-2xl border border-gray-700 shadow-2xl animate-in slide-in-from-bottom duration-300 my-auto">
+                                <div className="p-6">
                             <h3 className="text-xl font-bold text-white mb-2">Confirmar Reserva</h3>
                             <p className="text-gray-400 text-sm mb-6">
                                 Estás a punto de reservar una pista.
@@ -481,6 +487,8 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
                                         <span>Confirmar</span>
                                     )}
                                 </button>
+                            </div>
+                                </div>
                             </div>
                         </div>
                     </div>
