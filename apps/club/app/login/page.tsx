@@ -16,30 +16,42 @@ export default function LoginPage() {
     // Only run on client side
     useEffect(() => {
         setMounted(true);
+        
+        // Safety timeout - never show spinner for more than 3 seconds
+        const timeout = setTimeout(() => {
+            setCheckingSession(false);
+        }, 3000);
+        
+        return () => clearTimeout(timeout);
     }, []);
 
     useEffect(() => {
         if (!mounted) return;
         
-        const supabase = createBrowserClient();
-        
-        // Check session once on mount
-        supabase.auth.getSession()
-            .then(({ data: { session } }) => {
-                if (session) {
-                    if (session.user.email === "jonaypc@gmail.com") {
-                        router.replace("/admin");
+        try {
+            const supabase = createBrowserClient();
+            
+            // Check session once on mount
+            supabase.auth.getSession()
+                .then(({ data: { session } }) => {
+                    if (session) {
+                        if (session.user.email === "jonaypc@gmail.com") {
+                            router.replace("/admin");
+                        } else {
+                            router.replace("/dashboard");
+                        }
                     } else {
-                        router.replace("/dashboard");
+                        setCheckingSession(false);
                     }
-                } else {
+                })
+                .catch((error) => {
+                    console.error('Session check error:', error);
                     setCheckingSession(false);
-                }
-            })
-            .catch((error) => {
-                console.error('Session check error:', error);
-                setCheckingSession(false);
-            });
+                });
+        } catch (error) {
+            console.error('Error creating supabase client:', error);
+            setCheckingSession(false);
+        }
     }, [mounted, router]);
 
     async function signIn() {
