@@ -45,14 +45,29 @@ export default function AdminUsersPage() {
             console.error('Error cargando clubs:', clubsError);
         }
 
-        // Cargar miembros de clubs (usuarios asignados)
+        // Cargar miembros de clubs (usuarios asignados) - sin join con profiles para evitar errores
         const { data: membersData, error: membersError } = await supabase
             .from('club_members')
-            .select('id, club_id, user_id, role, clubs(name), profiles(email, display_name)')
+            .select('id, club_id, user_id, role, clubs(name)')
             .order('created_at', { ascending: false });
 
         if (membersError) {
-            console.error('Error cargando miembros:', membersError);
+            console.error('Error cargando miembros:', membersError.message, membersError.code, membersError.details);
+        }
+
+        // Cargar emails de profiles por separado
+        if (membersData && membersData.length > 0) {
+            const userIds = membersData.map(m => m.user_id);
+            const { data: profilesData } = await supabase
+                .from('profiles')
+                .select('id, email, display_name')
+                .in('id', userIds);
+
+            // Combinar datos
+            const profilesMap = new Map(profilesData?.map(p => [p.id, p]) || []);
+            membersData.forEach((m: any) => {
+                m.profiles = profilesMap.get(m.user_id) || { email: m.user_id, display_name: null };
+            });
         }
 
         console.log('Clubs cargados:', clubsData);
