@@ -253,265 +253,255 @@ export default function AppHome() {
   const bestLocation = bestByField("location");
 
   return (
-    <div className="min-h-screen bg-gray-900 pb-20 lg:pb-6">
+    <div className="min-h-screen bg-gray-900 pb-20 md:pb-6">
       <AppHeader />
 
-      <div className="max-w-md lg:max-w-6xl mx-auto px-4 py-6">
+      <div className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto px-4 py-6">
         {/* Título principal */}
         <div className="mb-6">
-          <h1 className="text-3xl lg:text-4xl font-bold text-white mb-2">PÁDEL</h1>
-          {userName && <p className="text-sm lg:text-base text-gray-400">Hola, {userName}</p>}
+          <h1 className="text-3xl font-bold text-white mb-2">PÁDEL</h1>
+          {userName && <p className="text-sm text-gray-400">Hola, {userName}</p>}
         </div>
 
-        {/* Layout responsive - Grid en escritorio */}
-        <div className="lg:grid lg:grid-cols-3 lg:gap-6">
-          {/* Columna izquierda */}
-          <div className="lg:col-span-1 space-y-4 lg:space-y-6">
-            {/* Métricas principales circulares */}
-            {totalPlayed > 0 && (
-              <div className="flex justify-around items-center bg-gray-800 rounded-2xl p-6 border border-gray-700">
-                <CircularMetric
-                  value={`${winPercentage}%`}
-                  label="VICTORIAS"
-                  percentage={winPercentage}
-                  color="green"
-                  onClick={() => router.push("/stats")}
-                />
-                <CircularMetric
-                  value={totalPlayed}
-                  label="PARTIDOS"
-                  percentage={Math.min((totalPlayed / 50) * 100, 100)}
-                  color="blue"
-                  onClick={() => router.push("/matches")}
-                />
-                <CircularMetric
-                  value={winStreak}
-                  label="RACHA"
-                  percentage={Math.min((winStreak / 10) * 100, 100)}
-                  color="orange"
-                  onClick={() => router.push("/stats")}
-                />
-              </div>
-            )}
+        {/* Métricas principales circulares */}
+        {totalPlayed > 0 && (
+          <div className="flex justify-around items-center mb-6 bg-gray-800 rounded-2xl p-6 border border-gray-700">
+            <CircularMetric
+              value={`${winPercentage}%`}
+              label="VICTORIAS"
+              percentage={winPercentage}
+              color="green"
+              onClick={() => router.push("/stats")}
+            />
+            <CircularMetric
+              value={totalPlayed}
+              label="PARTIDOS"
+              percentage={Math.min((totalPlayed / 50) * 100, 100)}
+              color="blue"
+              onClick={() => router.push("/matches")}
+            />
+            <CircularMetric
+              value={winStreak}
+              label="RACHA"
+              percentage={Math.min((winStreak / 10) * 100, 100)}
+              color="orange"
+              onClick={() => router.push("/stats")}
+            />
+          </div>
+        )}
 
-            {/* Mi Ranking */}
-            {totalPlayed > 0 && (
-              <div className="bg-gray-800 rounded-2xl p-4 border border-gray-700 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold text-white">🏆 Mi Ranking</h2>
-                  <button
-                    onClick={() => router.push("/stats")}
-                    className="text-xs text-green-500 hover:text-green-400 transition"
-                  >
-                    Ver más →
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <StatCard
-                    label="Mejor pareja"
-                    value={bestPartner ? `${bestPartner.name} (${bestPartner.pct}%)` : "—"}
-                  />
-                  <StatCard
-                    label="Mejor ubicación"
-                    value={bestLocation ? `${bestLocation.name} (${bestLocation.pct}%)` : "—"}
-                  />
-                  <StatCard label="Mejor racha" value={bestWinStreak} />
-                  <StatCard label="% victorias" value={`${winPercentage}%`} />
-                </div>
-
-                <p className="text-[11px] text-gray-500 leading-relaxed">
-                  Nota: este ranking se calcula con tus <span className="text-gray-300">últimos 50</span> partidos.
-                </p>
-              </div>
-            )}
-
-            {/* Tarjetas de monitores */}
-            <div className="grid grid-cols-2 gap-3">
-              <MonitorCard
-                title="RENDIMIENTO"
-                status={winPercentage >= 60 ? "EXCELENTE" : winPercentage >= 50 ? "BUENO" : "MEJORABLE"}
-                value={winPercentage >= 60 ? "✓" : ""}
-                subtitle={`${victories}/${totalPlayed} partidos`}
-                color="green"
+        {/* Mi Ranking */}
+        {totalPlayed > 0 && (
+          <div className="mb-6 bg-gray-800 rounded-2xl p-4 border border-gray-700 space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-white">🏆 Mi Ranking</h2>
+              <button
                 onClick={() => router.push("/stats")}
-              />
-              <MonitorCard
-                title="ACTIVIDAD"
-                status={activityLevel}
-                value={recentMatches > 0 ? `${recentMatches}` : "0"}
-                subtitle="Esta semana"
-                color="blue"
-                onClick={() => router.push("/matches")}
-              />
+                className="text-xs text-green-500 hover:text-green-400 transition"
+              >
+                Ver más →
+              </button>
             </div>
 
-            {/* Acciones rápidas */}
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => router.push("/new-match")}
-                className="bg-gray-800 border border-gray-700 rounded-xl p-4 flex items-center gap-2 hover:bg-gray-750 transition"
-              >
-                <span className="text-xl">+</span>
-                <span className="text-sm font-medium text-gray-300">Añadir resultado</span>
-              </button>
-              <button
-                onClick={() => router.push("/organize-match")}
-                className="bg-gray-800 border border-gray-700 rounded-xl p-4 flex items-center gap-2 hover:bg-gray-750 transition"
-              >
-                <span className="text-2xl">🎾</span>
-                <span className="text-sm font-medium text-white">+ Montar partido</span>
-              </button>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <StatCard
+                label="Mejor pareja"
+                value={bestPartner ? `${bestPartner.name} (${bestPartner.pct}%)` : "—"}
+              />
+              <StatCard
+                label="Mejor ubicación"
+                value={bestLocation ? `${bestLocation.name} (${bestLocation.pct}%)` : "—"}
+              />
+              <StatCard label="Mejor racha" value={bestWinStreak} />
+              <StatCard label="% victorias" value={`${winPercentage}%`} />
             </div>
+
+            <p className="text-[11px] text-gray-500 leading-relaxed">
+              Nota: este ranking se calcula con tus <span className="text-gray-300">últimos 50</span> partidos.
+            </p>
+          </div>
+        )}
+
+        {/* Tarjetas de monitores */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+          <MonitorCard
+            title="RENDIMIENTO"
+            status={winPercentage >= 60 ? "EXCELENTE" : winPercentage >= 50 ? "BUENO" : "MEJORABLE"}
+            value={winPercentage >= 60 ? "✓" : ""}
+            subtitle={`${victories}/${totalPlayed} partidos`}
+            color="green"
+            onClick={() => router.push("/stats")}
+          />
+          <MonitorCard
+            title="ACTIVIDAD"
+            status={activityLevel}
+            value={recentMatches > 0 ? `${recentMatches}` : "0"}
+            subtitle="Esta semana"
+            color="blue"
+            onClick={() => router.push("/matches")}
+          />
+          <button
+            onClick={() => router.push("/new-match")}
+            className="bg-gray-800 border border-gray-700 rounded-xl p-4 flex flex-col items-center justify-center gap-2 hover:bg-gray-750 transition"
+          >
+            <span className="text-2xl">+</span>
+            <span className="text-xs font-medium text-gray-300 text-center">Añadir resultado</span>
+          </button>
+          <button
+            onClick={() => router.push("/organize-match")}
+            className="bg-gray-800 border border-gray-700 rounded-xl p-4 flex flex-col items-center justify-center gap-2 hover:bg-gray-750 transition"
+          >
+            <span className="text-2xl">🎾</span>
+            <span className="text-xs font-medium text-white text-center">Montar partido</span>
+          </button>
+        </div>
+
+        {/* Sección Mi actividad reciente */}
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-white">Mi actividad reciente</h2>
           </div>
 
-          {/* Columna central y derecha */}
-          <div className="lg:col-span-2 mt-6 lg:mt-0 space-y-4 lg:space-y-6">
-            {/* Sección Mi actividad reciente */}
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-white">Mi actividad reciente</h2>
-              </div>
+          {matches.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {pastMatches.slice(0, 6).map((match) => {
+                const matchResult = isWin(match);
+                const isIncomplete = match.notes && match.notes.includes("[PARTIDO INACABADO");
 
-              {matches.length > 0 ? (
-                <div className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
-                  {pastMatches.slice(0, 6).map((match) => {
-                    const matchResult = isWin(match);
-                    const isIncomplete = match.notes && match.notes.includes("[PARTIDO INACABADO");
+                let setsCompletados = 0;
+                if (match.set1_us != null && match.set1_them != null) setsCompletados++;
+                if (match.set2_us != null && match.set2_them != null) setsCompletados++;
+                if (match.set3_us != null && match.set3_them != null) setsCompletados++;
 
-                    let setsCompletados = 0;
-                    if (match.set1_us != null && match.set1_them != null) setsCompletados++;
-                    if (match.set2_us != null && match.set2_them != null) setsCompletados++;
-                    if (match.set3_us != null && match.set3_them != null) setsCompletados++;
+                let us = 0, them = 0;
+                if (match.set1_us != null && match.set1_them != null) {
+                  if (match.set1_us > match.set1_them) us++;
+                  else if (match.set1_them > match.set1_us) them++;
+                }
+                if (match.set2_us != null && match.set2_them != null) {
+                  if (match.set2_us > match.set2_them) us++;
+                  else if (match.set2_them > match.set2_us) them++;
+                }
+                if (match.set3_us != null && match.set3_them != null) {
+                  if (match.set3_us > match.set3_them) us++;
+                  else if (match.set3_them > match.set3_us) them++;
+                }
 
-                    let us = 0, them = 0;
-                    if (match.set1_us != null && match.set1_them != null) {
-                      if (match.set1_us > match.set1_them) us++;
-                      else if (match.set1_them > match.set1_us) them++;
-                    }
-                    if (match.set2_us != null && match.set2_them != null) {
-                      if (match.set2_us > match.set2_them) us++;
-                      else if (match.set2_them > match.set2_us) them++;
-                    }
-                    if (match.set3_us != null && match.set3_them != null) {
-                      if (match.set3_us > match.set3_them) us++;
-                      else if (match.set3_them > match.set3_us) them++;
-                    }
+                const partidoCompleto =
+                  (setsCompletados >= 2 && (us >= 2 || them >= 2)) ||
+                  (setsCompletados === 3 && us !== them);
 
-                    const partidoCompleto =
-                      (setsCompletados >= 2 && (us >= 2 || them >= 2)) ||
-                      (setsCompletados === 3 && us !== them);
+                const resultText =
+                  isIncomplete || (!partidoCompleto && setsCompletados > 0)
+                    ? "Inacabado"
+                    : matchResult === true
+                      ? "Victoria"
+                      : matchResult === false
+                        ? "Derrota"
+                        : null;
 
-                    const resultText =
-                      isIncomplete || (!partidoCompleto && setsCompletados > 0)
-                        ? "Inacabado"
-                        : matchResult === true
-                          ? "Victoria"
-                          : matchResult === false
-                            ? "Derrota"
-                            : null;
+                const score = formatScore(match);
+                const timeAgo = getTimeAgo(match.played_at);
 
-                    const score = formatScore(match);
-                    const timeAgo = getTimeAgo(match.played_at);
-
-                    return (
-                      <div key={match.id} className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-                        <LastMatchCard
-                          result={resultText}
-                          score={score}
-                          timeAgo={timeAgo}
-                          matchId={match.id}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="bg-gray-800 rounded-xl p-4 border border-gray-700 text-center">
-                  <p className="text-gray-400 text-sm">No hay partidos registrados todavía</p>
-                </div>
-              )}
+                return (
+                  <div key={match.id} className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+                    <LastMatchCard
+                      result={resultText}
+                      score={score}
+                      timeAgo={timeAgo}
+                      matchId={match.id}
+                    />
+                  </div>
+                );
+              })}
             </div>
-
-            {/* Accesos Rápidos */}
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-white uppercase tracking-wide">
-                  Accesos Rápidos
-                </h2>
-              </div>
-
-              <div className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
-                <Link
-                  href="/ranking"
-                  className="block bg-gray-800 border border-gray-700 rounded-xl p-4 hover:bg-gray-750 transition no-underline"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">🏆</span>
-                      <div>
-                        <p className="text-sm font-semibold text-white">Ranking</p>
-                        <p className="text-xs text-gray-400">Ver clasificación</p>
-                      </div>
-                    </div>
-                    <span className="text-green-500">→</span>
-                  </div>
-                </Link>
-
-                <Link
-                  href="/clubs"
-                  className="block bg-gray-800 border border-gray-700 rounded-xl p-4 hover:bg-gray-750 transition no-underline"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">🏟️</span>
-                      <div>
-                        <p className="text-sm font-semibold text-white">Clubs</p>
-                        <p className="text-xs text-gray-400">Explorar clubs</p>
-                      </div>
-                    </div>
-                    <span className="text-green-500">→</span>
-                  </div>
-                </Link>
-
-                <Link
-                  href="/reservations"
-                  className="block bg-gray-800 border border-gray-700 rounded-xl p-4 hover:bg-gray-750 transition no-underline"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">📅</span>
-                      <div>
-                        <p className="text-sm font-semibold text-white">Mis Reservas</p>
-                        <p className="text-xs text-gray-400">Ver tus reservas</p>
-                      </div>
-                    </div>
-                    <span className="text-green-500">→</span>
-                  </div>
-                </Link>
-
-                <Link
-                  href="/feed"
-                  className="block bg-gray-800 border border-gray-700 rounded-xl p-4 hover:bg-gray-750 transition no-underline"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">📱</span>
-                      <div>
-                        <p className="text-sm font-semibold text-white">Feed</p>
-                        <p className="text-xs text-gray-400">Actividad reciente</p>
-                      </div>
-                    </div>
-                    <span className="text-green-500">→</span>
-                  </div>
-                </Link>
-              </div>
+          ) : (
+            <div className="bg-gray-800 rounded-xl p-4 border border-gray-700 text-center">
+              <p className="text-gray-400 text-sm">No hay partidos registrados todavía</p>
             </div>
+          )}
+        </div>
+
+        {/* Accesos Rápidos */}
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-white uppercase tracking-wide">
+              Accesos Rápidos
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            <Link
+              href="/ranking"
+              className="block bg-gray-800 border border-gray-700 rounded-xl p-4 hover:bg-gray-750 transition no-underline"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">🏆</span>
+                  <div>
+                    <p className="text-sm font-semibold text-white">Ranking</p>
+                    <p className="text-xs text-gray-400">Ver clasificación</p>
+                  </div>
+                </div>
+                <span className="text-green-500">→</span>
+              </div>
+            </Link>
+
+            <Link
+              href="/clubs"
+              className="block bg-gray-800 border border-gray-700 rounded-xl p-4 hover:bg-gray-750 transition no-underline"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">🏟️</span>
+                  <div>
+                    <p className="text-sm font-semibold text-white">Clubs</p>
+                    <p className="text-xs text-gray-400">Explorar clubs</p>
+                  </div>
+                </div>
+                <span className="text-green-500">→</span>
+              </div>
+            </Link>
+
+            <Link
+              href="/reservations"
+              className="block bg-gray-800 border border-gray-700 rounded-xl p-4 hover:bg-gray-750 transition no-underline"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">📅</span>
+                  <div>
+                    <p className="text-sm font-semibold text-white">Mis Reservas</p>
+                    <p className="text-xs text-gray-400">Ver tus reservas</p>
+                  </div>
+                </div>
+                <span className="text-green-500">→</span>
+              </div>
+            </Link>
+
+            <Link
+              href="/feed"
+              className="block bg-gray-800 border border-gray-700 rounded-xl p-4 hover:bg-gray-750 transition no-underline"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">📱</span>
+                  <div>
+                    <p className="text-sm font-semibold text-white">Feed</p>
+                    <p className="text-xs text-gray-400">Actividad reciente</p>
+                  </div>
+                </div>
+                <span className="text-green-500">→</span>
+              </div>
+            </Link>
           </div>
         </div>
       </div>
 
-      <BottomNav />
+      {/* BottomNav solo visible en móvil */}
+      <div className="md:hidden">
+        <BottomNav />
+      </div>
     </div>
   );
 }
