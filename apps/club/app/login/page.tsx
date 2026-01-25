@@ -58,11 +58,11 @@ export default function LoginPage() {
         setLoading(true);
         setMsg(null);
         
-        // Safety timeout for login button
+        // Safety timeout for login button - 30 seconds
         const loginTimeout = setTimeout(() => {
             setLoading(false);
             setMsg("El login tardó demasiado. Por favor intenta de nuevo.");
-        }, 10000);
+        }, 30000);
         
         try {
             const supabase = createBrowserClient();
