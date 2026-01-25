@@ -20,12 +20,10 @@ interface ClubMember {
 }
 
 export default function AdminUsersPage() {
-    // Create supabase client with useMemo to keep stable reference
-    const supabase = useMemo(() => createBrowserClient(), []);
-
     const [clubs, setClubs] = useState<Club[]>([]);
     const [members, setMembers] = useState<ClubMember[]>([]);
     const [loading, setLoading] = useState(true);
+    const [mounted, setMounted] = useState(false);
 
     // Formulario
     const [selectedClub, setSelectedClub] = useState("");
@@ -37,67 +35,81 @@ export default function AdminUsersPage() {
     const [success, setSuccess] = useState<string | null>(null);
     const [userEmail, setUserEmail] = useState<string | null>(null);
 
+    // Mount detection
     useEffect(() => {
+        setMounted(true);
+        // Safety timeout
+        const timeout = setTimeout(() => {
+            setLoading(false);
+        }, 5000);
+        return () => clearTimeout(timeout);
+    }, []);
+
+    useEffect(() => {
+        if (!mounted) return;
+        
+        const supabase = createBrowserClient();
         supabase.auth.getUser().then(({ data }) => setUserEmail(data.user?.email || 'No Session'));
-    }, [supabase]);
+    }, [mounted]);
 
     const loadData = useCallback(async () => {
-        console.log("AdminUsersPage: Starting loadData...");
+        if (!mounted) return;
+        
+        const supabase = createBrowserClient();
         setLoading(true);
         setError(null);
 
-        // Cargar clubs
-        console.log("AdminUsersPage: Fetching clubs...");
-        const { data: clubsData, error: clubsError } = await supabase
-            .from('clubs')
-            .select('id, name')
-            .order('name');
+        try {
+            // Cargar clubs
+            const { data: clubsData, error: clubsError } = await supabase
+                .from('clubs')
+                .select('id, name')
+                .order('name');
 
-        if (clubsError) {
-            console.error('AdminUsersPage: Error cargando clubs:', clubsError);
-            setError(`Error cargando clubs: ${clubsError.message}`);
-        } else {
-            console.log("AdminUsersPage: Clubs fetched:", clubsData);
+            if (clubsError) {
+                setError(`Error cargando clubs: ${clubsError.message}`);
+            }
+
+            // Cargar miembros de clubs
+            const { data: membersData, error: membersError } = await supabase
+                .from('club_members')
+                .select('id, club_id, user_id, role, clubs(name)')
+                .order('created_at', { ascending: false });
+
+            if (membersError) {
+                setError(prev => prev ? `${prev} | Error miembros: ${membersError.message}` : `Error cargando miembros: ${membersError.message}`);
+            }
+
+            // Cargar emails de profiles por separado
+            if (membersData && membersData.length > 0) {
+                const userIds = membersData.map((m: any) => m.user_id);
+                const { data: profilesData } = await supabase
+                    .from('profiles')
+                    .select('id, email, display_name')
+                    .in('id', userIds);
+
+                // Combinar datos
+                const profilesMap = new Map(profilesData?.map(p => [p.id, p]) || []);
+                membersData.forEach((m: any) => {
+                    m.profiles = profilesMap.get(m.user_id) || { email: m.user_id, display_name: null };
+                });
+            }
+
+            setClubs(clubsData || []);
+            setMembers((membersData as unknown as ClubMember[]) || []);
+        } catch (err) {
+            console.error('loadData error:', err);
+            setError('Error cargando datos');
+        } finally {
+            setLoading(false);
         }
-
-        // Cargar miembros de clubs
-        console.log("AdminUsersPage: Fetching members...");
-        const { data: membersData, error: membersError } = await supabase
-            .from('club_members')
-            .select('id, club_id, user_id, role, clubs(name)')
-            .order('created_at', { ascending: false });
-
-        if (membersError) {
-            console.error('AdminUsersPage: Error cargando miembros:', membersError);
-            setError(prev => prev ? `${prev} | Error miembros: ${membersError.message}` : `Error cargando miembros: ${membersError.message}`);
-        } else {
-            console.log("AdminUsersPage: Members fetched:", membersData);
-        }
-
-        // Cargar emails de profiles por separado
-        if (membersData && membersData.length > 0) {
-            const userIds = membersData.map((m: any) => m.user_id);
-            const { data: profilesData } = await supabase
-                .from('profiles')
-                .select('id, email, display_name')
-                .in('id', userIds);
-
-            // Combinar datos
-            const profilesMap = new Map(profilesData?.map(p => [p.id, p]) || []);
-            membersData.forEach((m: any) => {
-                m.profiles = profilesMap.get(m.user_id) || { email: m.user_id, display_name: null };
-            });
-        }
-
-        setClubs(clubsData || []);
-        setMembers((membersData as unknown as ClubMember[]) || []);
-        setLoading(false);
-        console.log("AdminUsersPage: loadData finished.");
-    }, [supabase]);
+    }, [mounted]);
 
     useEffect(() => {
-        loadData();
-    }, [loadData]);
+        if (mounted) {
+            loadData();
+        }
+    }, [mounted, loadData]);
 
     async function createUser(e: React.FormEvent) {
         e.preventDefault();
@@ -108,6 +120,7 @@ export default function AdminUsersPage() {
         setSuccess(null);
 
         try {
+            const supabase = createBrowserClient();
             const { data: { user } } = await supabase.auth.getUser();
 
             const res = await fetch('/api/admin/create-user', {
