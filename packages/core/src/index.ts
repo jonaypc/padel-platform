@@ -24,6 +24,10 @@ export interface Club extends BaseEntity {
     logo_url: string | null;
     booking_duration: number; // Minutos, default 90
     default_price: number;
+    opening_hour: number;
+    closing_hour: number;
+    shifts: any; // JSONB
+    extras: any; // JSONB
     updated_at: string;
 }
 

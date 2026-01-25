@@ -22,7 +22,7 @@ export default function DashboardPage() {
             // 1. Obtener club y configuración básica
             const { data: memberData } = await supabase
                 .from('club_members')
-                .select('club_id, clubs(booking_duration, opening_hour, closing_hour)')
+                .select('club_id, clubs(booking_duration, opening_hour, closing_hour, shifts)')
                 .eq('user_id', user.id)
                 .single();
 
@@ -36,6 +36,10 @@ export default function DashboardPage() {
             const duration = club?.booking_duration || 90;
             const opening = club?.opening_hour || 8;
             const closing = club?.closing_hour || 23;
+            // Shifts for today
+            const todayIndex = new Date().getDay();
+            const todayKey = todayIndex === 0 ? "7" : todayIndex.toString();
+            const todayShifts = club?.shifts?.[todayKey] || [{ start: `${opening}:00`, end: `${closing}:00` }];
 
             // 2. Contar pistas
             const { count: courtsCount } = await supabase
@@ -79,8 +83,22 @@ export default function DashboardPage() {
 
             // 4. Calcular ocupación
             // Slots totales = pistas * (horas abiertas * 60 / duración)
-            const hoursOpen = closing - opening;
-            const slotsPerCourt = Math.floor((hoursOpen * 60) / duration);
+            // 4. Calcular ocupación real basada en shifts
+            let totalMinutesOpen = 0;
+            if (Array.isArray(todayShifts)) {
+                todayShifts.forEach((s: any) => {
+                    const [StartH, StartM] = s.start.split(':').map(Number);
+                    const [EndH, EndM] = s.end.split(':').map(Number);
+                    const startMin = StartH * 60 + StartM;
+                    const endMin = EndH * 60 + EndM;
+                    totalMinutesOpen += (endMin - startMin);
+                });
+            } else {
+                // Fallback simple
+                totalMinutesOpen = (closing - opening) * 60;
+            }
+
+            const slotsPerCourt = Math.floor(totalMinutesOpen / duration);
             const totalPossibleSlots = (courtsCount || 0) * slotsPerCourt;
             const occupancy = totalPossibleSlots > 0 ? Math.round((resCount / totalPossibleSlots) * 100) : 0;
 

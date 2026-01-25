@@ -24,6 +24,7 @@ export default function SettingsPage() {
     const [selectedDay, setSelectedDay] = useState<string>("1");
     const [useShifts, setUseShifts] = useState(false);
     const [extras, setExtras] = useState<{ name: string; price: number }[]>([]);
+    const [priceTemplates, setPriceTemplates] = useState<{ label: string; price: number }[]>([]);
 
     const [openingHour, setOpeningHour] = useState<number>(8);
     const [closingHour, setClosingHour] = useState<number>(23);
@@ -50,7 +51,7 @@ export default function SettingsPage() {
             if (error) {
                 const { data: retryData, error: retryError } = await supabase
                     .from('club_members')
-                    .select('club_id, clubs(id, name, booking_duration, default_price, opening_hour, closing_hour, shifts, extras)')
+                    .select('club_id, clubs(id, name, booking_duration, default_price, opening_hour, closing_hour, shifts, extras, price_templates)')
                     .eq('user_id', user.id)
                     .limit(1);
 
@@ -72,6 +73,7 @@ export default function SettingsPage() {
                     setOpeningHour(club.opening_hour ?? 8);
                     setClosingHour(club.closing_hour ?? 23);
                     setExtras(club.extras || []);
+                    setPriceTemplates(club.price_templates || []);
 
                     if (club.shifts) {
                         setSchedule(club.shifts as WeekSchedule);
@@ -105,14 +107,15 @@ export default function SettingsPage() {
         try {
             // Preparar payload con extras limpios (filtrar vacíos)
             const cleanExtras = extras.filter(e => e.name.trim() !== '');
-            
+
             const updatePayload = {
                 booking_duration: duration,
                 default_price: defaultPrice,
                 opening_hour: openingHour,
                 closing_hour: closingHour,
                 shifts: useShifts ? schedule : null,
-                extras: cleanExtras
+                extras: cleanExtras,
+                price_templates: priceTemplates.filter(t => t.label.trim() !== '')
             };
 
             console.log('Guardando configuración:', updatePayload);
@@ -185,6 +188,22 @@ export default function SettingsPage() {
         setExtras(extras.filter((_, i) => i !== index));
     };
 
+    const addTemplate = () => {
+        setPriceTemplates([...priceTemplates, { label: '', price: 0 }]);
+    };
+
+    const updateTemplate = (index: number, field: "label" | "price", value: string | number) => {
+        const newTemplates = [...priceTemplates];
+        if (newTemplates[index]) {
+            newTemplates[index] = { ...newTemplates[index], [field]: value };
+        }
+        setPriceTemplates(newTemplates);
+    };
+
+    const removeTemplate = (index: number) => {
+        setPriceTemplates(priceTemplates.filter((_, i) => i !== index));
+    };
+
     const timeOptions: string[] = [];
     for (let h = 0; h < 24; h++) {
         timeOptions.push(`${h.toString().padStart(2, "0")}:00`);
@@ -234,6 +253,48 @@ export default function SettingsPage() {
                         className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-green-500 font-bold text-xl pr-12"
                     />
                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold">€</span>
+                </div>
+            </div>
+
+            <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 bg-pink-900/30 rounded-lg text-pink-400">🏷️</div>
+                    <div>
+                        <h2 className="text-lg font-semibold">Botones de Precio Rápido</h2>
+                        <p className="text-xs text-gray-400">Define botones para aplicar precios rápidamente (ej: Socio, Liga)</p>
+                    </div>
+                </div>
+                <div className="space-y-3">
+                    {priceTemplates.map((template, idx) => (
+                        <div key={idx} className="flex gap-3 items-center">
+                            <input
+                                type="text"
+                                placeholder="Ej: Socio"
+                                value={template.label}
+                                onChange={(e) => updateTemplate(idx, 'label', e.target.value)}
+                                className="flex-1 bg-gray-900 border border-gray-700 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-green-500 text-sm"
+                            />
+                            <div className="relative w-32">
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    value={template.price}
+                                    onChange={(e) => updateTemplate(idx, 'price', parseFloat(e.target.value) || 0)}
+                                    className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-green-500 text-sm pr-8"
+                                />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs font-bold">€</span>
+                            </div>
+                            <button onClick={() => removeTemplate(idx)} className="p-2 text-red-500 hover:bg-red-900/20 rounded-lg">
+                                <X size={18} />
+                            </button>
+                        </div>
+                    ))}
+                    <button
+                        onClick={addTemplate}
+                        className="w-full py-2.5 border border-dashed border-gray-600 text-gray-400 rounded-xl hover:border-gray-500 transition text-sm font-medium"
+                    >
+                        + Añadir Botón de Precio
+                    </button>
                 </div>
             </div>
 

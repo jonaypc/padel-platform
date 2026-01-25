@@ -11,6 +11,9 @@ interface Court {
     price?: number;
 }
 
+type Shift = { start: string; end: string };
+type WeekSchedule = Record<string, Shift[]>; // keys: "1"=Mon ... "7"=Sun
+
 interface Reservation {
     id: string;
     court_id: string;
@@ -28,6 +31,15 @@ interface Reservation {
 }
 
 export default function ReservationsPage() {
+    // Warning Logic State
+    const [now, setNow] = useState(new Date());
+    const [acknowledgedWarnings, setAcknowledgedWarnings] = useState<Set<string>>(new Set());
+
+    useEffect(() => {
+        const interval = setInterval(() => setNow(new Date()), 60000);
+        return () => clearInterval(interval);
+    }, []);
+
     const [date, setDate] = useState(new Date());
     const [courts, setCourts] = useState<Court[]>([]);
     const [reservations, setReservations] = useState<Reservation[]>([]);
@@ -36,6 +48,7 @@ export default function ReservationsPage() {
     const [clubDefaultPrice, setClubDefaultPrice] = useState(0);
     const [openingHour, setOpeningHour] = useState(8);
     const [closingHour, setClosingHour] = useState(23);
+    const [shifts, setShifts] = useState<WeekSchedule | null>(null);
     const [loading, setLoading] = useState(true);
 
     // Modal states
@@ -60,14 +73,15 @@ export default function ReservationsPage() {
     const [searchLoading, setSearchLoading] = useState(false);
 
     // Advanced features states
-    const [reservationPlayers, setReservationPlayers] = useState<{ name: string, paid: boolean, amount: number }[]>([
-        { name: '', paid: false, amount: 0 },
-        { name: '', paid: false, amount: 0 },
-        { name: '', paid: false, amount: 0 },
-        { name: '', paid: false, amount: 0 }
+    const [reservationPlayers, setReservationPlayers] = useState<{ name: string, paid: boolean, amount: number, sharesCost?: boolean, courtPrice?: number }[]>([
+        { name: '', paid: false, amount: 0, sharesCost: true, courtPrice: 3 }, // Default small value to show it works? Defaults to 0 is safer
+        { name: '', paid: false, amount: 0, sharesCost: true, courtPrice: 3 },
+        { name: '', paid: false, amount: 0, sharesCost: true, courtPrice: 3 },
+        { name: '', paid: false, amount: 0, sharesCost: true, courtPrice: 3 }
     ]);
-    const [reservationItems, setReservationItems] = useState<{ name: string, price: number, quantity: number }[]>([]);
+    const [reservationItems, setReservationItems] = useState<{ name: string, price: number, quantity: number, assignedTo?: string[] }[]>([]);
     const [availableExtras, setAvailableExtras] = useState<{ name: string, price: number }[]>([]);
+    const [priceTemplates, setPriceTemplates] = useState<{ label: string, price: number }[]>([]);
 
     const supabase = createBrowserClient();
 
@@ -103,6 +117,8 @@ export default function ReservationsPage() {
                 setOpeningHour(club.opening_hour ?? 8);
                 setClosingHour(club.closing_hour ?? 23);
                 setAvailableExtras(club.extras || []);
+                setPriceTemplates(club.price_templates || []);
+                setShifts(club.shifts || null);
 
                 // 2. Obtener pistas (incluyendo precio específico)
                 let { data: courtsData, error: courtsError } = await supabase
@@ -144,7 +160,8 @@ export default function ReservationsPage() {
             .from('reservations')
             .select('*, profiles(display_name)')
             .eq('club_id', clubId)
-            // Fix: intersection query instead of containment
+            // Fix: intersection query (reservas que solapan con el día seleccionado)
+            // (StartA <= EndB) and (EndA >= StartB)
             .lt('start_time', endOfDay.toISOString())
             .gt('end_time', startOfDay.toISOString())
             .neq('status', 'cancelled');
@@ -154,7 +171,7 @@ export default function ReservationsPage() {
         }
 
         setReservations((data as unknown as Reservation[]) || []);
-    }, [clubId, date, supabase]);
+    }, [clubId, date, supabase, shifts, openingHour, closingHour, duration]);
 
     useEffect(() => {
         loadReservations();
@@ -181,12 +198,15 @@ export default function ReservationsPage() {
         const price = court?.price || clubDefaultPrice;
         setReservationPrice(price.toString());
 
+        const perPlayer = price / 4;
+
         // Reset advanced features
+        // Init players with default shared price
         setReservationPlayers([
-            { name: '', paid: false, amount: 0 },
-            { name: '', paid: false, amount: 0 },
-            { name: '', paid: false, amount: 0 },
-            { name: '', paid: false, amount: 0 }
+            { name: '', paid: false, amount: 0, sharesCost: true, courtPrice: perPlayer },
+            { name: '', paid: false, amount: 0, sharesCost: true, courtPrice: perPlayer },
+            { name: '', paid: false, amount: 0, sharesCost: true, courtPrice: perPlayer },
+            { name: '', paid: false, amount: 0, sharesCost: true, courtPrice: perPlayer }
         ]);
         setReservationItems([]);
     };
@@ -202,13 +222,23 @@ export default function ReservationsPage() {
 
         // Load advanced features if exist
         if (reservation.players && reservation.players.length > 0) {
-            setReservationPlayers(reservation.players);
+            // BACKWARD COMPATIBILITY: If courtPrice is missing, infer it from total / count
+            const playerCount = reservation.players.length || 1;
+            const itemTotal = (reservation.items || []).reduce((acc: number, i: any) => acc + (i.price * i.quantity), 0);
+            const totalCourtPrice = (reservation.price || 0) - itemTotal;
+            const fallbackPrice = totalCourtPrice / playerCount;
+
+            setReservationPlayers(reservation.players.map((p: any) => ({
+                ...p,
+                courtPrice: p.courtPrice !== undefined ? p.courtPrice : fallbackPrice
+            })));
         } else {
+            const perPlayer = (reservation.price || 0) / 4;
             setReservationPlayers([
-                { name: reservation.profiles?.display_name || 'Jugador 1', paid: true, amount: 0 },
-                { name: '', paid: false, amount: 0 },
-                { name: '', paid: false, amount: 0 },
-                { name: '', paid: false, amount: 0 }
+                { name: reservation.profiles?.display_name || 'Jugador 1', paid: true, amount: 0, sharesCost: true, courtPrice: perPlayer },
+                { name: '', paid: false, amount: 0, sharesCost: true, courtPrice: perPlayer },
+                { name: '', paid: false, amount: 0, sharesCost: true, courtPrice: perPlayer },
+                { name: '', paid: false, amount: 0, sharesCost: true, courtPrice: perPlayer }
             ]);
         }
         setReservationItems(reservation.items || []);
@@ -224,7 +254,7 @@ export default function ReservationsPage() {
                 .select('id, display_name, avatar_url')
                 .ilike('display_name', `%${searchEmail}%`)
                 .limit(5);
-            
+
             if (error) throw error;
             if (data && data.length > 0) {
                 const firstUser = data[0];
@@ -341,7 +371,7 @@ export default function ReservationsPage() {
         setProcessing(false);
     };
 
-    const handleMoveReservation = async () => {
+    const handleUpdateReservation = async () => {
         if (!selectedReservation || !newStartTime || !newCourtId) return;
         setProcessing(true);
 
@@ -356,29 +386,39 @@ export default function ReservationsPage() {
         const newEnd = new Date(newStart);
         newEnd.setMinutes(newStart.getMinutes() + (duration || 90));
 
-        // Validación de conflictos en cliente
-        const hasConflict = reservations.some(r => {
-            if (r.id === selectedReservation.id) return false; // Ignorar la propia reserva actual
-            if (r.court_id !== newCourtId) return false; // IMPORTANTE: Check en la nueva pista seleccionada
+        // Skip conflict check if Time and Court are unchanged (Just updating payments/extras)
+        const isSameTime = newStart.getTime() === new Date(selectedReservation.start_time).getTime();
+        const isSameCourt = newCourtId === selectedReservation.court_id;
 
-            const rStart = new Date(r.start_time).getTime();
-            const rEnd = new Date(r.end_time).getTime();
+        if (!isSameTime || !isSameCourt) {
+            // Validación de conflictos en cliente
+            const hasConflict = reservations.some(r => {
+                if (r.id === selectedReservation.id) return false; // Ignorar la propia reserva actual
+                if (r.court_id !== newCourtId) return false; // IMPORTANTE: Check en la nueva pista seleccionada
 
-            // Chequeo de solape simple (Intersection)
-            // (StartA < EndB) and (EndA > StartB)
-            return (newStart.getTime() < rEnd && newEnd.getTime() > rStart);
-        });
+                const rStart = new Date(r.start_time).getTime();
+                const rEnd = new Date(r.end_time).getTime();
 
-        if (hasConflict) {
-            alert('❌ Conflicto: Ya hay una reserva en ese horario/pista.');
-            setProcessing(false);
-            return;
+                // Chequeo de solape simple (Intersection)
+                // (StartA < EndB) and (EndA > StartB)
+                return (newStart.getTime() < rEnd && newEnd.getTime() > rStart);
+            });
+
+            if (hasConflict) {
+                alert('❌ Conflicto: Ya hay una reserva en ese horario/pista.');
+                setProcessing(false);
+                return;
+            }
         }
 
         // Calcular estado de pago
         const playersPaid = reservationPlayers.filter(p => p.paid).length;
         let pStatus: 'pending' | 'partial' | 'completed' = 'pending';
-        if (playersPaid === reservationPlayers.length) pStatus = 'completed';
+        // Logic: if all paid -> completed. If some paid -> partial.
+        // NOTE: We might want "Completed" status to be separate from "Paid"?
+        // For now, let's keep payment_status driving the "Sale".
+
+        if (playersPaid === reservationPlayers.length && reservationPlayers.length > 0) pStatus = 'completed';
         else if (playersPaid > 0) pStatus = 'partial';
 
         // Actualizar en BD (Hora, Pista, Precio, Notas, Jugadores, Items y Estado Pago)
@@ -398,38 +438,76 @@ export default function ReservationsPage() {
             .select();
 
         if (error) {
-            alert('Error al mover: ' + error.message);
+            alert('Error al actualizar: ' + error.message);
         } else {
-            alert('✅ Reserva movida correctamente');
+            // alert('✅ Reserva actualizada correctamente');
             loadReservations();
             setSelectedReservation(null);
         }
         setProcessing(false);
     };
 
-    // Generar slots usando horario del club
+    const handlePayAll = () => {
+        const newPlayers = reservationPlayers.map(p => ({ ...p, paid: true }));
+        setReservationPlayers(newPlayers);
+    };
+
+    // Generar slots usando horario del club (soporte para turnos complejos)
     const baseSlots: Date[] = [];
-    const current = new Date(date);
-    current.setHours(openingHour, 0, 0, 0);
 
-    // Crear hora de cierre para comparación segura
-    const closingTime = new Date(date);
-    closingTime.setHours(closingHour, 0, 0, 0);
+    // Identificar día de la semana (1=Lunes ... 7=Domingo)
+    const dayIndex = date.getDay(); // 0=Dom, 1=Lun...
+    const dayKey = dayIndex === 0 ? "7" : dayIndex.toString();
 
-    // Usar comparación de timestamps para evitar loop infinito
-    while (current.getTime() < closingTime.getTime() && baseSlots.length < 50) {
-        baseSlots.push(new Date(current));
-        current.setMinutes(current.getMinutes() + (duration || 90));
+    let dayShifts: Shift[] = [];
+
+    if (shifts && shifts[dayKey]) {
+        dayShifts = shifts[dayKey] || [];
+    } else {
+        // Fallback a horario simple si no hay shifts definidos para ese día
+        dayShifts = [{
+            start: `${openingHour.toString().padStart(2, '0')}:00`,
+            end: `${closingHour.toString().padStart(2, '0')}:00`
+        }];
     }
 
-    // Fusionar con los horarios reales de las reservas existentes (inicio y fin)
+    dayShifts.forEach(shift => {
+        const startParts = shift.start.split(':').map(Number);
+        const endParts = shift.end.split(':').map(Number);
+
+        const startHour = startParts[0] ?? 0;
+        const startMin = startParts[1] ?? 0;
+
+        const endHour = endParts[0] ?? 0;
+        const endMin = endParts[1] ?? 0;
+
+        if (isNaN(startHour) || isNaN(endHour)) return;
+
+        const currentShiftStart = new Date(date);
+        currentShiftStart.setHours(startHour, startMin, 0, 0);
+
+        const currentShiftEnd = new Date(date);
+        currentShiftEnd.setHours(endHour, endMin, 0, 0);
+
+        // Generar slots para este turno
+        const ptr = new Date(currentShiftStart);
+        while (ptr.getTime() < currentShiftEnd.getTime()) {
+            const nextTime = new Date(ptr);
+            nextTime.setMinutes(ptr.getMinutes() + (duration || 90));
+
+            if (nextTime.getTime() <= currentShiftEnd.getTime()) {
+                baseSlots.push(new Date(ptr));
+            }
+
+            ptr.setMinutes(ptr.getMinutes() + (duration || 90));
+        }
+    });
+
     const reservationSlots = reservations.flatMap(r => {
         const start = new Date(r.start_time);
         start.setSeconds(0, 0);
-
         const end = new Date(r.end_time);
         end.setSeconds(0, 0);
-
         return [start, end];
     });
 
@@ -444,16 +522,8 @@ export default function ReservationsPage() {
 
     const timeSlots = Array.from(allTimestamps)
         .sort((a, b) => a - b)
-        .map(ts => new Date(ts))
-        .filter(d => {
-            // Filtrar solo los que estén dentro del horario de apertura/cierre visual
-            // Ojo: si un juego termina al cierre, no hace falta mostrar esa hora como slot de inicio
-            const h = d.getHours();
-            // Permitir mostrar hasta la hora de cierre (exclusivo) para no mostrar slot a las 23:00 si cierra a las 23
-            return h >= openingHour && h < closingHour;
-        });
+        .map(ts => new Date(ts));
 
-    if (loading) return <div className="flex justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div></div>;
     if (!clubId) return <div className="p-4 text-center text-gray-400">No tienes acceso a un club</div>;
 
     return (
@@ -476,12 +546,12 @@ export default function ReservationsPage() {
                 </button>
             </div>
 
-            {/* Grid Calendario con Scroll */}
-            <div className="overflow-x-auto rounded-xl border border-gray-700 bg-gray-900/50">
-                <div className="min-w-[600px] lg:min-w-0">
+            {/* Grid Calendario con Scroll Custom */}
+            <div className="overflow-x-auto rounded-xl border border-gray-700 bg-gray-900/50 custom-scrollbar pb-2">
+                <div className="min-w-[800px] lg:min-w-0">
                     {/* Cabecera Pistas */}
                     <div className="flex border-b border-gray-700">
-                        <div className="w-16 shrink-0 bg-gray-800 sticky left-0 z-10 border-r border-gray-700"></div>
+                        <div className="w-16 shrink-0 bg-gray-800 sticky left-0 z-10 border-r border-gray-700 shadow-md"></div>
                         {courts.map(court => (
                             <div key={court.id} className="flex-1 p-3 text-center border-r border-gray-700 bg-gray-800 last:border-r-0">
                                 <span className="font-semibold text-white text-sm">{court.name}</span>
@@ -495,9 +565,9 @@ export default function ReservationsPage() {
                         const slotTime = slot.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 
                         return (
-                            <div key={slotMs} className="flex border-b border-gray-800 last:border-b-0 h-20">
-                                {/* Hora */}
-                                <div className="w-16 shrink-0 p-2 text-xs text-gray-400 border-r border-gray-700 bg-gray-900 sticky left-0 z-10 flex flex-col justify-between">
+                            <div key={slotMs} className="flex border-b border-gray-800 last:border-b-0 h-20 hover:bg-white/5 transition-colors">
+                                {/* Hora Sticky */}
+                                <div className="w-16 shrink-0 p-2 text-xs text-gray-400 border-r border-gray-700 bg-gray-900 sticky left-0 z-10 flex flex-col justify-between shadow-md">
                                     <span>{slotTime}</span>
                                 </div>
 
@@ -535,7 +605,15 @@ export default function ReservationsPage() {
                                                         ${startingReservation.type === 'maintenance'
                                                             ? 'bg-red-900/90 text-red-400 border border-red-800 hover:bg-red-900'
                                                             : 'bg-green-900/90 text-green-400 border border-green-800 hover:bg-green-900'
-                                                        }`}
+                                                        }
+                                                        ${(() => {
+                                                            const endTime = new Date(startingReservation.end_time).getTime();
+                                                            const isOverdue = now.getTime() > endTime + (5 * 60 * 1000); // 5 mins tolerance
+                                                            const isPending = startingReservation.payment_status !== 'completed';
+                                                            const showWarning = isOverdue && isPending && !acknowledgedWarnings.has(startingReservation.id);
+                                                            return showWarning ? 'animate-pulse border-2 border-red-500 !bg-red-600/80 text-white shadow-[0_0_15px_rgba(239,68,68,0.7)] z-20' : '';
+                                                        })()}
+                                                        `}
                                                     style={{ height: 'calc(100% + 2px)', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.5)' }}
                                                 >
                                                     <span className="uppercase tracking-tighter opacity-70 block text-[8px] mb-0.5">
@@ -568,8 +646,8 @@ export default function ReservationsPage() {
 
             {/* Modal Crear Reserva */}
             {selectedSlot && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 overflow-y-auto" onClick={() => setSelectedSlot(null)}>
-                    <div className="bg-gray-800 rounded-2xl w-full max-w-sm border border-gray-700 shadow-2xl my-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto" onClick={() => setSelectedSlot(null)}>
+                    <div className="bg-gray-800 rounded-2xl w-full max-w-md border border-gray-700 shadow-2xl my-4 max-h-[90vh] overflow-y-auto animate-in" onClick={e => e.stopPropagation()}>
                         {/* Tabs Header */}
                         <div className="flex border-b border-gray-700">
                             <button
@@ -717,9 +795,9 @@ export default function ReservationsPage() {
                                                     placeholder={`Jugador ${idx + 1}`}
                                                     value={player.name}
                                                     onChange={e => {
-                                                    const newPlayers = [...reservationPlayers];
-                                                    if (newPlayers[idx]) newPlayers[idx].name = e.target.value;
-                                                    setReservationPlayers(newPlayers);
+                                                        const newPlayers = [...reservationPlayers];
+                                                        if (newPlayers[idx]) newPlayers[idx].name = e.target.value;
+                                                        setReservationPlayers(newPlayers);
                                                     }}
                                                     className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-xs focus:border-green-500 outline-none"
                                                 />
@@ -816,8 +894,8 @@ export default function ReservationsPage() {
 
             {/* Modal Detalles Reserva */}
             {selectedReservation && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setSelectedReservation(null)}>
-                    <div className="bg-gray-800 rounded-2xl w-full max-w-sm border border-gray-700 overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto" onClick={() => setSelectedReservation(null)}>
+                    <div className="bg-gray-800 rounded-2xl w-full max-w-md border border-gray-700 shadow-2xl my-4 max-h-[90vh] overflow-y-auto animate-in" onClick={e => e.stopPropagation()}>
                         <div className="p-6">
                             <div className="flex justify-between items-start mb-4">
                                 <h3 className="text-xl font-bold text-white">
@@ -875,86 +953,177 @@ export default function ReservationsPage() {
                                     </div>
                                 </>
                             ) : (
-                                // MODO EDICIÓN
-                                <div className="space-y-4 animate-in fade-in">
-                                    <div className="bg-gray-900 p-4 rounded-xl border border-gray-700">
-                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Nueva Hora Inicio</label>
-                                        <input
-                                            type="time"
-                                            value={newStartTime}
-                                            onChange={(e) => setNewStartTime(e.target.value)}
-                                            className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white focus:border-green-500 outline-none text-xl font-mono text-center"
-                                        />
+                                <div className="space-y-3 animate-in fade-in">
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="bg-gray-900 p-3 rounded-lg border border-gray-700">
+                                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Nueva Hora</label>
+                                            <input
+                                                type="time"
+                                                value={newStartTime}
+                                                onChange={(e) => setNewStartTime(e.target.value)}
+                                                className="w-full bg-gray-800 border border-gray-600 rounded-lg px-2 py-1.5 text-white focus:border-green-500 outline-none text-sm font-mono text-center"
+                                            />
+                                        </div>
+
+                                        <div className="bg-gray-900 p-3 rounded-lg border border-gray-700">
+                                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Mover Pista</label>
+                                            <select
+                                                value={newCourtId}
+                                                onChange={(e) => setNewCourtId(e.target.value)}
+                                                className="w-full bg-gray-800 border border-gray-600 rounded-lg px-2 py-1.5 text-white focus:border-green-500 outline-none text-xs"
+                                            >
+                                                {courts.map(c => (
+                                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
                                     </div>
 
-                                    <div className="bg-gray-900 p-4 rounded-xl border border-gray-700">
-                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Cambiar Pista</label>
-                                        <select
-                                            value={newCourtId}
-                                            onChange={(e) => setNewCourtId(e.target.value)}
-                                            className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-green-500 outline-none text-sm"
-                                        >
-                                            {courts.map(c => (
-                                                <option key={c.id} value={c.id}>{c.name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
+                                    <div className="bg-gray-900 p-3 rounded-lg border border-gray-700">
+                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Total Calculado (€)</label>
 
-                                    <div className="bg-gray-900 p-4 rounded-xl border border-gray-700">
-                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Precio de la Reserva (€)</label>
+                                        {/* Price Templates (Apply to ALL) */}
+                                        {priceTemplates.length > 0 && (
+                                            <div className="flex flex-wrap gap-2 mb-2">
+                                                {priceTemplates.map((t, i) => (
+                                                    <button
+                                                        key={i}
+                                                        onClick={() => {
+                                                            // Set SAME price for ALL players
+                                                            const newPlayers = reservationPlayers.map(p => ({ ...p, courtPrice: t.price }));
+                                                            setReservationPlayers(newPlayers);
+                                                        }}
+                                                        className="px-2 py-1 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded text-[10px] text-gray-300 transition"
+                                                    >
+                                                        {t.label} (Todos: {t.price}€)
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
                                         <input
                                             type="number"
                                             step="0.01"
                                             value={reservationPrice}
                                             onChange={(e) => setReservationPrice(e.target.value)}
-                                            className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white focus:border-green-500 outline-none font-bold text-lg"
+                                            className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-1.5 text-white focus:border-green-500 outline-none font-bold text-base"
                                         />
                                     </div>
 
-                                    <div className="bg-gray-900 p-4 rounded-xl border border-gray-700">
-                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Notas / Información</label>
+                                    <div className="bg-gray-900 p-3 rounded-lg border border-gray-700">
+                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Notas</label>
                                         <textarea
                                             value={editNotes}
                                             onChange={(e) => setEditNotes(e.target.value)}
-                                            placeholder="Información relevante para el staff..."
-                                            className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:border-green-500 outline-none min-h-[60px] resize-none"
+                                            placeholder="Info..."
+                                            className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-1.5 text-white text-xs focus:border-green-500 outline-none min-h-[40px] resize-none"
                                         />
                                     </div>
 
                                     {/* Edit Players */}
-                                    <div className="bg-gray-900 p-4 rounded-xl border border-gray-700 space-y-3">
-                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest">Jugadores y Pagos</label>
-                                        <div className="space-y-2">
-                                            {reservationPlayers.map((player, idx) => (
-                                                <div key={idx} className="flex gap-2 items-center">
-                                                    <input
-                                                        type="text"
-                                                        placeholder={`Jugador ${idx + 1}`}
-                                                        value={player.name}
-                                                        onChange={e => {
-                                                            const newPlayers = [...reservationPlayers];
-                                                            if (newPlayers[idx]) newPlayers[idx].name = e.target.value;
-                                                            setReservationPlayers(newPlayers);
-                                                        }}
-                                                        className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-xs focus:border-green-500 outline-none"
-                                                    />
-                                                    <button
-                                                        onClick={() => {
-                                                            const newPlayers = [...reservationPlayers];
-                                                            if (newPlayers[idx]) newPlayers[idx].paid = !newPlayers[idx].paid;
-                                                            setReservationPlayers(newPlayers);
-                                                        }}
-                                                        className={`px-3 py-2 rounded-lg text-[10px] font-bold transition ${player.paid ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
-                                                    >
-                                                        {player.paid ? 'PAGADO' : 'PENDIENTE'}
-                                                    </button>
-                                                </div>
-                                            ))}
+                                    <div className="bg-gray-900 p-3 rounded-lg border border-gray-700 space-y-2">
+                                        <div className="flex justify-between items-center">
+                                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest">Jugadores y Pagos</label>
+                                            <button onClick={handlePayAll} className="text-[10px] bg-green-900/40 text-green-400 px-2 py-0.5 rounded border border-green-900 hover:bg-green-900/60 transition font-bold">
+                                                COBRAR TODO
+                                            </button>
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            {reservationPlayers.map((player, idx) => {
+                                                // 1. Calculate Court Share (Explicit Per Player)
+                                                // We rely on player.courtPrice being set manually or via template.
+                                                const myCourtShare = player.courtPrice || 0;
+
+                                                // 2. Calculate My Items Share (Multi-Select)
+                                                const myItemsShare = reservationItems.reduce((acc, item) => {
+                                                    const itemTotal = item.price * item.quantity;
+                                                    const assignees = item.assignedTo || [];
+
+                                                    // Case A: No assignees -> Shared by ALL
+                                                    if (assignees.length === 0) {
+                                                        return acc + (itemTotal / (reservationPlayers.length || 1));
+                                                    }
+
+                                                    // Case B: I am in the assignee list
+                                                    if (assignees.includes(idx.toString())) {
+                                                        return acc + (itemTotal / assignees.length);
+                                                    }
+
+                                                    return acc;
+                                                }, 0);
+
+                                                const debt = myCourtShare + myItemsShare;
+
+                                                return (
+                                                    <div key={idx} className="flex gap-2 items-center group">
+                                                        {/* Template Selector for THIS player */}
+                                                        <select
+                                                            className="w-4 h-6 bg-gray-800 border border-gray-600 rounded text-[10px] text-gray-400 outline-none p-0 text-center"
+                                                            onChange={(e) => {
+                                                                const val = parseFloat(e.target.value);
+                                                                if (!isNaN(val)) {
+                                                                    const newPlayers = [...reservationPlayers];
+                                                                    newPlayers[idx].courtPrice = val;
+                                                                    setReservationPlayers(newPlayers);
+                                                                }
+                                                            }}
+                                                            value=""
+                                                        >
+                                                            <option value="" disabled>▼</option>
+                                                            {priceTemplates.map((t, i) => (
+                                                                <option key={i} value={t.price}>{t.label} ({t.price}€)</option>
+                                                            ))}
+                                                        </select>
+
+                                                        <input
+                                                            type="text"
+                                                            placeholder={`Jugador ${idx + 1}`}
+                                                            value={player.name}
+                                                            onChange={e => {
+                                                                const newPlayers = [...reservationPlayers];
+                                                                if (newPlayers[idx]) newPlayers[idx].name = e.target.value;
+                                                                setReservationPlayers(newPlayers);
+                                                            }}
+                                                            className="flex-1 bg-gray-800 border border-gray-600 rounded-md px-2 py-1.5 text-white text-xs focus:border-green-500 outline-none"
+                                                        />
+
+                                                        {/* Individual Court Price Input */}
+                                                        <div className="relative w-14 group/price">
+                                                            <input
+                                                                type="number"
+                                                                step="0.5"
+                                                                value={player.courtPrice}
+                                                                onChange={(e) => {
+                                                                    const val = parseFloat(e.target.value);
+                                                                    const newPlayers = [...reservationPlayers];
+                                                                    newPlayers[idx].courtPrice = isNaN(val) ? 0 : val;
+                                                                    setReservationPlayers(newPlayers);
+                                                                }}
+                                                                className="w-full bg-gray-900 border border-gray-600 rounded-md px-1 py-1.5 text-right text-xs text-blue-300 focus:border-blue-500 outline-none"
+                                                                title="Precio Pista Individual"
+                                                            />
+                                                        </div>
+
+                                                        <span className={`text-xs font-mono w-14 text-right ${debt > 0 ? 'text-green-400 font-bold' : 'text-gray-500'}`}>
+                                                            {debt.toFixed(2)}€
+                                                        </span>
+                                                        <button
+                                                            onClick={() => {
+                                                                const newPlayers = [...reservationPlayers];
+                                                                if (newPlayers[idx]) newPlayers[idx].paid = !newPlayers[idx].paid;
+                                                                setReservationPlayers(newPlayers);
+                                                            }}
+                                                            className={`px-2 py-1.5 rounded-md text-[10px] font-bold transition w-16 text-center ${player.paid ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+                                                        >
+                                                            {player.paid ? 'PAGADO' : 'PENDIENTE'}
+                                                        </button>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </div>
 
                                     {/* Edit Extras */}
-                                    <div className="bg-gray-900 p-4 rounded-xl border border-gray-700 space-y-3">
+                                    <div className="bg-gray-900 p-3 rounded-lg border border-gray-700 space-y-2">
                                         <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest">Extras / Tienda</label>
                                         <div className="flex flex-wrap gap-2">
                                             {availableExtras.map(extra => (
@@ -969,7 +1138,7 @@ export default function ReservationsPage() {
                                                         }
                                                         setReservationPrice((prev) => (parseFloat(prev) + extra.price).toString());
                                                     }}
-                                                    className="bg-gray-800 hover:bg-gray-700 text-white px-2 py-1.5 rounded-lg text-[10px] flex items-center gap-1 border border-gray-600 transition"
+                                                    className="bg-gray-800 hover:bg-gray-700 text-white px-2 py-1 rounded-md text-[10px] flex items-center gap-1 border border-gray-600 transition"
                                                 >
                                                     <span>{extra.name}</span>
                                                     <span className="text-green-400 font-bold">+{extra.price}€</span>
@@ -977,26 +1146,66 @@ export default function ReservationsPage() {
                                             ))}
                                         </div>
                                         {reservationItems.length > 0 && (
-                                            <div className="bg-gray-800 rounded-lg p-2 space-y-1">
+                                            <div className="bg-gray-800 rounded-lg p-2 space-y-2">
                                                 {reservationItems.map((item, idx) => (
-                                                    <div key={idx} className="flex justify-between items-center text-[10px]">
-                                                        <span className="text-gray-300">{item.name} (x{item.quantity})</span>
-                                                        <button
-                                                            onClick={() => {
-                                                                const newItems = [...reservationItems];
-                                                                const currentItem = newItems[idx];
-                                                                if (currentItem && currentItem.quantity > 1) {
-                                                                    currentItem.quantity -= 1;
-                                                                    setReservationItems(newItems);
-                                                                } else {
-                                                                    setReservationItems(newItems.filter((_, i) => i !== idx));
-                                                                }
-                                                                setReservationPrice((prev) => (parseFloat(prev) - item.price).toString());
-                                                            }}
-                                                            className="text-red-500"
-                                                        >
-                                                            <X size={12} />
-                                                        </button>
+                                                    <div key={idx} className="flex flex-col gap-1 text-[10px] border-b border-gray-700 pb-2 last:border-0 last:pb-0">
+                                                        <div className="flex justify-between items-center">
+                                                            <span className="text-gray-300 font-bold">{item.name} (x{item.quantity})</span>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-green-400">{item.price * item.quantity}€</span>
+                                                                <button
+                                                                    onClick={() => {
+                                                                        const newItems = [...reservationItems];
+                                                                        const currentItem = newItems[idx];
+                                                                        if (currentItem && currentItem.quantity > 1) {
+                                                                            currentItem.quantity -= 1;
+                                                                            setReservationItems(newItems);
+                                                                        } else {
+                                                                            setReservationItems(newItems.filter((_, i) => i !== idx));
+                                                                        }
+                                                                        setReservationPrice((prev) => (parseFloat(prev) - item.price).toString());
+                                                                    }}
+                                                                    className="text-red-500"
+                                                                >
+                                                                    <X size={12} />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Owner Selector */}
+                                                        {/* Owner Toggles */}
+                                                        <div className="flex gap-1">
+                                                            {reservationPlayers.map((p, pIdx) => {
+                                                                const isAssigned = (item.assignedTo || []).includes(pIdx.toString());
+                                                                return (
+                                                                    <button
+                                                                        key={pIdx}
+                                                                        onClick={() => {
+                                                                            const newItems = [...reservationItems];
+                                                                            const currentAssignees = newItems[idx].assignedTo || [];
+                                                                            let newAssignees;
+
+                                                                            if (currentAssignees.includes(pIdx.toString())) {
+                                                                                newAssignees = currentAssignees.filter(id => id !== pIdx.toString());
+                                                                            } else {
+                                                                                newAssignees = [...currentAssignees, pIdx.toString()];
+                                                                            }
+
+                                                                            newItems[idx].assignedTo = newAssignees;
+                                                                            setReservationItems(newItems);
+                                                                        }}
+                                                                        className={`w-5 h-5 flex items-center justify-center rounded text-[9px] font-bold border transition
+                                                                            ${isAssigned
+                                                                                ? 'bg-blue-600 border-blue-500 text-white shadow-sm'
+                                                                                : 'bg-gray-800 border-gray-600 text-gray-500 hover:border-gray-400'
+                                                                            }`}
+                                                                        title={`Asignar a ${p.name || 'Jugador ' + (pIdx + 1)}`}
+                                                                    >
+                                                                        {pIdx + 1}
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
                                                     </div>
                                                 ))}
                                             </div>
@@ -1011,11 +1220,11 @@ export default function ReservationsPage() {
                                             Cancelar
                                         </button>
                                         <button
-                                            onClick={handleMoveReservation}
+                                            onClick={handleUpdateReservation}
                                             disabled={processing}
                                             className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition shadow-lg shadow-blue-900/30 disabled:opacity-50"
                                         >
-                                            {processing ? 'Guardando...' : 'Confirmar'}
+                                            {processing ? 'Guardando...' : 'Guardar Cambios y Cerrar'}
                                         </button>
                                     </div>
                                 </div>
@@ -1024,7 +1233,8 @@ export default function ReservationsPage() {
                         </div>
                     </div>
                 </div>
-            )}
-        </div>
+            )
+            }
+        </div >
     );
 }
