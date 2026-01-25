@@ -386,8 +386,8 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
 
             {/* Modal Selección de Pista */}
             {selectingCourt && (
-                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => setSelectingCourt(null)}>
-                    <div className="bg-gray-800 w-full max-w-sm rounded-2xl border border-gray-700 shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-300" onClick={e => e.stopPropagation()}>
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200 overflow-y-auto" onClick={() => setSelectingCourt(null)}>
+                    <div className="bg-gray-800 w-full max-w-sm rounded-2xl border border-gray-700 shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-300 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
                         <div className="p-6">
                             <h3 className="text-xl font-bold text-white mb-2">Selecciona Pista</h3>
                             <p className="text-gray-400 text-sm mb-4">
@@ -428,8 +428,8 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
 
             {/* Modal Confirmación */}
             {selectedSlot && (
-                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                    <div className="bg-gray-800 w-full max-w-sm rounded-2xl border border-gray-700 shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-300">
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200 overflow-y-auto">
+                    <div className="bg-gray-800 w-full max-w-sm rounded-2xl border border-gray-700 shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-300 max-h-[90vh] overflow-y-auto">
                         <div className="p-6">
                             <h3 className="text-xl font-bold text-white mb-2">Confirmar Reserva</h3>
                             <p className="text-gray-400 text-sm mb-6">
