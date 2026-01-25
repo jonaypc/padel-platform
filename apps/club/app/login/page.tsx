@@ -1,11 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createBrowserClient } from "@padel/supabase";
 import { useRouter } from "next/navigation";
-
-// Create supabase client outside component to be stable
-const supabase = createBrowserClient();
 
 export default function LoginPage() {
     const [email, setEmail] = useState("");
@@ -14,8 +11,19 @@ export default function LoginPage() {
     const [checkingSession, setCheckingSession] = useState(true);
     const [msg, setMsg] = useState<string | null>(null);
     const router = useRouter();
+    
+    // Lazy initialize supabase client
+    const supabaseRef = useRef<ReturnType<typeof createBrowserClient> | null>(null);
+    const getSupabase = () => {
+        if (!supabaseRef.current) {
+            supabaseRef.current = createBrowserClient();
+        }
+        return supabaseRef.current;
+    };
 
     useEffect(() => {
+        const supabase = getSupabase();
+        
         // Check session once on mount
         supabase.auth.getSession().then(({ data: { session } }) => {
             if (session) {
@@ -36,6 +44,8 @@ export default function LoginPage() {
     async function signIn() {
         setLoading(true);
         setMsg(null);
+        
+        const supabase = getSupabase();
 
         const { data, error } = await supabase.auth.signInWithPassword({
             email,
