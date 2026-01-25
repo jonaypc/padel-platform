@@ -36,16 +36,27 @@ export default function AdminUsersPage() {
 
     const loadData = useCallback(async () => {
         // Cargar clubs
-        const { data: clubsData } = await supabase
+        const { data: clubsData, error: clubsError } = await supabase
             .from('clubs')
             .select('id, name')
             .order('name');
 
+        if (clubsError) {
+            console.error('Error cargando clubs:', clubsError);
+        }
+
         // Cargar miembros de clubs (usuarios asignados)
-        const { data: membersData } = await supabase
+        const { data: membersData, error: membersError } = await supabase
             .from('club_members')
             .select('id, club_id, user_id, role, clubs(name), profiles(email, display_name)')
             .order('created_at', { ascending: false });
+
+        if (membersError) {
+            console.error('Error cargando miembros:', membersError);
+        }
+
+        console.log('Clubs cargados:', clubsData);
+        console.log('Miembros cargados:', membersData);
 
         setClubs(clubsData || []);
         setMembers((membersData as unknown as ClubMember[]) || []);
