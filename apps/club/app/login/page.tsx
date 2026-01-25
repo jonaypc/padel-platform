@@ -1,8 +1,11 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { createBrowserClient } from "@padel/supabase";
 import { useRouter } from "next/navigation";
+
+// Create supabase client outside component to be stable
+const supabase = createBrowserClient();
 
 export default function LoginPage() {
     const [email, setEmail] = useState("");
@@ -10,37 +13,25 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
     const [checkingSession, setCheckingSession] = useState(true);
     const [msg, setMsg] = useState<string | null>(null);
-
-    // Create supabase client with useMemo to keep stable reference
-    const supabase = useMemo(() => createBrowserClient(), []);
     const router = useRouter();
 
     useEffect(() => {
-        let isMounted = true;
-        
-        async function checkSession() {
-            try {
-                const { data: { session } } = await supabase.auth.getSession();
-                if (!isMounted) return;
-                
-                if (session) {
-                    if (session.user.email === "jonaypc@gmail.com") {
-                        router.replace("/admin");
-                    } else {
-                        router.replace("/dashboard");
-                    }
+        // Check session once on mount
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            if (session) {
+                if (session.user.email === "jonaypc@gmail.com") {
+                    router.replace("/admin");
                 } else {
-                    setCheckingSession(false);
+                    router.replace("/dashboard");
                 }
-            } catch (error) {
-                console.error('Session check error:', error);
-                if (isMounted) setCheckingSession(false);
+            } else {
+                setCheckingSession(false);
             }
-        }
-        checkSession();
-        
-        return () => { isMounted = false; };
-    }, [router, supabase]);
+        }).catch((error) => {
+            console.error('Session check error:', error);
+            setCheckingSession(false);
+        });
+    }, [router]);
 
     async function signIn() {
         setLoading(true);
