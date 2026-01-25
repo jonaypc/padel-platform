@@ -35,6 +35,9 @@ export default function AdminUsersPage() {
     const supabase = createBrowserClient();
 
     const loadData = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+
         // Cargar clubs
         const { data: clubsData, error: clubsError } = await supabase
             .from('clubs')
@@ -43,21 +46,23 @@ export default function AdminUsersPage() {
 
         if (clubsError) {
             console.error('Error cargando clubs:', clubsError);
+            setError(`Error cargando clubs: ${clubsError.message}`);
         }
 
-        // Cargar miembros de clubs (usuarios asignados) - sin join con profiles para evitar errores
+        // Cargar miembros de clubs
         const { data: membersData, error: membersError } = await supabase
             .from('club_members')
             .select('id, club_id, user_id, role, clubs(name)')
             .order('created_at', { ascending: false });
 
         if (membersError) {
-            console.error('Error cargando miembros:', membersError.message, membersError.code, membersError.details);
+            console.error('Error cargando miembros:', membersError);
+            setError(prev => prev ? `${prev} | Error miembros: ${membersError.message}` : `Error cargando miembros: ${membersError.message}`);
         }
 
         // Cargar emails de profiles por separado
         if (membersData && membersData.length > 0) {
-            const userIds = membersData.map(m => m.user_id);
+            const userIds = membersData.map((m: any) => m.user_id);
             const { data: profilesData } = await supabase
                 .from('profiles')
                 .select('id, email, display_name')
@@ -69,9 +74,6 @@ export default function AdminUsersPage() {
                 m.profiles = profilesMap.get(m.user_id) || { email: m.user_id, display_name: null };
             });
         }
-
-        console.log('Clubs cargados:', clubsData);
-        console.log('Miembros cargados:', membersData);
 
         setClubs(clubsData || []);
         setMembers((membersData as unknown as ClubMember[]) || []);
@@ -92,7 +94,7 @@ export default function AdminUsersPage() {
 
         try {
             const { data: { user } } = await supabase.auth.getUser();
-            
+
             const res = await fetch('/api/admin/create-user', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -224,7 +226,7 @@ export default function AdminUsersPage() {
                 {error && (
                     <div className="bg-red-900/30 border border-red-700 rounded-xl p-3 flex items-center gap-2 text-red-400">
                         <X size={18} />
-                        {error}
+                        <span>{error}</span>
                     </div>
                 )}
 
@@ -259,7 +261,7 @@ export default function AdminUsersPage() {
                             <div>
                                 <h3 className="font-semibold text-white">{m.profiles?.email || 'Email no disponible'}</h3>
                                 <p className="text-sm text-gray-400">
-                                    {m.clubs?.name || 'Club desconocido'} • 
+                                    {m.clubs?.name || 'Club desconocido'} •
                                     <span className="ml-2 text-xs px-2 py-0.5 rounded bg-gray-700 text-green-400">{m.role}</span>
                                 </p>
                             </div>
