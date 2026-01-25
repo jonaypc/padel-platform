@@ -58,6 +58,12 @@ export default function LoginPage() {
         setLoading(true);
         setMsg(null);
         
+        // Safety timeout for login button
+        const loginTimeout = setTimeout(() => {
+            setLoading(false);
+            setMsg("El login tardó demasiado. Por favor intenta de nuevo.");
+        }, 10000);
+        
         try {
             const supabase = createBrowserClient();
 
@@ -67,6 +73,7 @@ export default function LoginPage() {
             });
 
             if (error) {
+                clearTimeout(loginTimeout);
                 setLoading(false);
                 setMsg(error.message);
                 return;
@@ -75,9 +82,12 @@ export default function LoginPage() {
             // Superadmin tiene acceso directo
             const SUPERADMIN_EMAIL = "jonaypc@gmail.com";
             if (data.user.email === SUPERADMIN_EMAIL) {
-                setMsg("Login correcto ✅");
-                // Use replace to avoid adding to history
-                window.location.replace("/admin");
+                clearTimeout(loginTimeout);
+                setMsg("Login correcto ✅ Redirigiendo...");
+                // Small delay to show message then redirect
+                setTimeout(() => {
+                    window.location.href = "/admin";
+                }, 500);
                 return;
             }
 
@@ -90,21 +100,27 @@ export default function LoginPage() {
 
             if (membershipError) {
                 console.error('Membership check error:', membershipError);
-                // Still allow login even if membership check fails
-                setMsg("Login correcto ✅");
-                window.location.replace("/dashboard");
+                clearTimeout(loginTimeout);
+                setMsg("Login correcto ✅ Redirigiendo...");
+                setTimeout(() => {
+                    window.location.href = "/dashboard";
+                }, 500);
                 return;
             }
 
             if (!membership || membership.length === 0) {
+                clearTimeout(loginTimeout);
                 await supabase.auth.signOut();
                 setLoading(false);
                 setMsg("No tienes acceso a ningún club. Contacta con el administrador.");
                 return;
             }
 
-            setMsg("Login correcto ✅");
-            window.location.replace("/dashboard");
+            clearTimeout(loginTimeout);
+            setMsg("Login correcto ✅ Redirigiendo...");
+            setTimeout(() => {
+                window.location.href = "/dashboard";
+            }, 500);
         } catch (err) {
             console.error('SignIn error:', err);
             setLoading(false);
