@@ -21,10 +21,24 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'La contraseña debe tener al menos 6 caracteres' }, { status: 400 });
         }
 
+        // Verificar variables de entorno
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+        if (!supabaseUrl) {
+            return NextResponse.json({ error: 'Configuración incompleta: NEXT_PUBLIC_SUPABASE_URL no está configurada' }, { status: 500 });
+        }
+
+        if (!serviceRoleKey) {
+            return NextResponse.json({ 
+                error: 'Configuración incompleta: SUPABASE_SERVICE_ROLE_KEY no está configurada en Vercel. Ve a Settings > Environment Variables y añade esta variable con el valor de tu service_role key de Supabase.' 
+            }, { status: 500 });
+        }
+
         // Crear cliente con service role key
         const supabaseAdmin = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.SUPABASE_SERVICE_ROLE_KEY!,
+            supabaseUrl,
+            serviceRoleKey,
             {
                 auth: {
                     autoRefreshToken: false,
