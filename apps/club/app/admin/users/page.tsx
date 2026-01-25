@@ -153,6 +153,20 @@ export default function AdminUsersPage() {
 
     return (
         <div className="space-y-6">
+            {/* DEBUG BANNER HIGH VISIBILITY */}
+            <div className={`p-4 rounded-xl border-4 font-bold text-center text-lg ${loading ? 'bg-blue-900 border-blue-500 text-white' :
+                    error ? 'bg-red-900 border-red-500 text-white' :
+                        clubs.length === 0 ? 'bg-yellow-900 border-yellow-500 text-yellow-100' :
+                            'bg-green-900 border-green-500 text-white'
+                }`}>
+                ESTADO: {
+                    loading ? 'CARGANDO...' :
+                        error ? `ERROR: ${error}` :
+                            clubs.length === 0 ? 'DATOS VACÍOS (0 CLUBS)' :
+                                `OK: ${clubs.length} CLUBS, ${members.length} MIEMBROS`
+                }
+            </div>
+
             <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-bold text-white">Crear Usuario de Club</h2>
             </div>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { createBrowserClient } from "@padel/supabase";
-import { Plus, Building2, Trash2 } from "lucide-react";
+import { Plus, Building2, Trash2, AlertCircle } from "lucide-react";
 
 interface Club {
     id: string;
@@ -18,14 +18,42 @@ export default function AdminClubsPage() {
     const [clubName, setClubName] = useState("");
     const [creating, setCreating] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [debugInfo, setDebugInfo] = useState<string>("");
+    const [authUser, setAuthUser] = useState<string | null>(null);
 
     const supabase = createBrowserClient();
 
     const loadClubs = useCallback(async () => {
-        const { data } = await supabase
+        setLoading(true);
+        setError(null);
+        
+        // Check auth status first
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        
+        if (authError) {
+            setDebugInfo(`Auth Error: ${authError.message}`);
+            setAuthUser(null);
+        } else if (!user) {
+            setDebugInfo("No user session - not authenticated");
+            setAuthUser(null);
+        } else {
+            setAuthUser(user.email || user.id);
+            setDebugInfo(`Authenticated as: ${user.email}`);
+        }
+
+        // Try to load clubs
+        const { data, error: clubsError } = await supabase
             .from('clubs')
             .select('*')
             .order('created_at', { ascending: false });
+
+        if (clubsError) {
+            setError(`Error cargando clubs: ${clubsError.message} (Code: ${clubsError.code})`);
+            setDebugInfo(prev => `${prev} | Clubs Error: ${clubsError.message}`);
+            console.error('Clubs fetch error:', clubsError);
+        } else {
+            setDebugInfo(prev => `${prev} | Clubs loaded: ${data?.length || 0}`);
+        }
 
         setClubs(data || []);
         setLoading(false);
@@ -62,6 +90,24 @@ export default function AdminClubsPage() {
 
     return (
         <div className="space-y-6">
+            {/* Debug Panel */}
+            <div className={`p-4 rounded-xl border-2 ${error ? 'bg-red-900/50 border-red-500' : authUser ? 'bg-green-900/50 border-green-500' : 'bg-yellow-900/50 border-yellow-500'}`}>
+                <div className="flex items-center gap-2 mb-2">
+                    <AlertCircle size={18} className={error ? 'text-red-400' : authUser ? 'text-green-400' : 'text-yellow-400'} />
+                    <span className="font-bold text-white">Estado de Conexión</span>
+                </div>
+                <p className="text-sm text-gray-300">Usuario: {authUser || 'No autenticado'}</p>
+                <p className="text-sm text-gray-300">Clubs encontrados: {clubs.length}</p>
+                <p className="text-xs text-gray-400 mt-1">{debugInfo}</p>
+                {error && <p className="text-sm text-red-400 mt-2">{error}</p>}
+                <button 
+                    onClick={loadClubs}
+                    className="mt-2 text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded"
+                >
+                    Recargar
+                </button>
+            </div>
+
             <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold text-white">Gestión de Clubs</h2>
                 <button
