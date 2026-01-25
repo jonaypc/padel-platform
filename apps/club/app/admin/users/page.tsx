@@ -40,29 +40,36 @@ export default function AdminUsersPage() {
     }, [supabase]);
 
     const loadData = useCallback(async () => {
+        console.log("AdminUsersPage: Starting loadData...");
         setLoading(true);
         setError(null);
 
         // Cargar clubs
+        console.log("AdminUsersPage: Fetching clubs...");
         const { data: clubsData, error: clubsError } = await supabase
             .from('clubs')
             .select('id, name')
             .order('name');
 
         if (clubsError) {
-            console.error('Error cargando clubs:', clubsError);
+            console.error('AdminUsersPage: Error cargando clubs:', clubsError);
             setError(`Error cargando clubs: ${clubsError.message}`);
+        } else {
+            console.log("AdminUsersPage: Clubs fetched:", clubsData);
         }
 
         // Cargar miembros de clubs
+        console.log("AdminUsersPage: Fetching members...");
         const { data: membersData, error: membersError } = await supabase
             .from('club_members')
             .select('id, club_id, user_id, role, clubs(name)')
             .order('created_at', { ascending: false });
 
         if (membersError) {
-            console.error('Error cargando miembros:', membersError);
+            console.error('AdminUsersPage: Error cargando miembros:', membersError);
             setError(prev => prev ? `${prev} | Error miembros: ${membersError.message}` : `Error cargando miembros: ${membersError.message}`);
+        } else {
+            console.log("AdminUsersPage: Members fetched:", membersData);
         }
 
         // Cargar emails de profiles por separado
@@ -83,6 +90,7 @@ export default function AdminUsersPage() {
         setClubs(clubsData || []);
         setMembers((membersData as unknown as ClubMember[]) || []);
         setLoading(false);
+        console.log("AdminUsersPage: loadData finished.");
     }, [supabase]);
 
     useEffect(() => {
@@ -285,6 +293,12 @@ export default function AdminUsersPage() {
                     <p>Members Count: {members.length}</p>
                     <p>Supabase URL: {process.env.NEXT_PUBLIC_SUPABASE_URL ? 'Defined' : 'MISSING'}</p>
                     <p>User Email: {userEmail || 'Not fetched yet'}</p>
+                    <button
+                        onClick={() => loadData()}
+                        className="mt-2 text-xs bg-blue-600 text-white px-2 py-1 rounded"
+                    >
+                        Forzar Recarga
+                    </button>
                 </div>
             </details>
         </div>
