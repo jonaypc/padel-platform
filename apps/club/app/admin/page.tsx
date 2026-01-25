@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { createBrowserClient } from "@padel/supabase";
 import { Plus, Building2, Trash2, AlertCircle } from "lucide-react";
 
@@ -21,42 +21,49 @@ export default function AdminClubsPage() {
     const [debugInfo, setDebugInfo] = useState<string>("");
     const [authUser, setAuthUser] = useState<string | null>(null);
 
-    const supabase = createBrowserClient();
+    // Create supabase client with useMemo to keep stable reference
+    const supabase = useMemo(() => createBrowserClient(), []);
 
     const loadClubs = useCallback(async () => {
         setLoading(true);
         setError(null);
         
-        // Check auth status first
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        
-        if (authError) {
-            setDebugInfo(`Auth Error: ${authError.message}`);
-            setAuthUser(null);
-        } else if (!user) {
-            setDebugInfo("No user session - not authenticated");
-            setAuthUser(null);
-        } else {
-            setAuthUser(user.email || user.id);
-            setDebugInfo(`Authenticated as: ${user.email}`);
+        try {
+            // Check auth status first
+            const { data: { user }, error: authError } = await supabase.auth.getUser();
+            
+            if (authError) {
+                setDebugInfo(`Auth Error: ${authError.message}`);
+                setAuthUser(null);
+            } else if (!user) {
+                setDebugInfo("No user session - not authenticated");
+                setAuthUser(null);
+            } else {
+                setAuthUser(user.email || user.id);
+                setDebugInfo(`Authenticated as: ${user.email}`);
+            }
+
+            // Try to load clubs
+            const { data, error: clubsError } = await supabase
+                .from('clubs')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (clubsError) {
+                setError(`Error cargando clubs: ${clubsError.message} (Code: ${clubsError.code})`);
+                setDebugInfo(prev => `${prev} | Clubs Error: ${clubsError.message}`);
+                console.error('Clubs fetch error:', clubsError);
+            } else {
+                setDebugInfo(prev => `${prev} | Clubs loaded: ${data?.length || 0}`);
+            }
+
+            setClubs(data || []);
+        } catch (e) {
+            console.error('Unexpected error:', e);
+            setError(`Error inesperado: ${e}`);
+        } finally {
+            setLoading(false);
         }
-
-        // Try to load clubs
-        const { data, error: clubsError } = await supabase
-            .from('clubs')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-        if (clubsError) {
-            setError(`Error cargando clubs: ${clubsError.message} (Code: ${clubsError.code})`);
-            setDebugInfo(prev => `${prev} | Clubs Error: ${clubsError.message}`);
-            console.error('Clubs fetch error:', clubsError);
-        } else {
-            setDebugInfo(prev => `${prev} | Clubs loaded: ${data?.length || 0}`);
-        }
-
-        setClubs(data || []);
-        setLoading(false);
     }, [supabase]);
 
     useEffect(() => {
