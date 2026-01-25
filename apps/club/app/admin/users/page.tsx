@@ -19,6 +19,8 @@ interface ClubMember {
 }
 
 export default function AdminUsersPage() {
+    const supabase = createBrowserClient();
+
     const [clubs, setClubs] = useState<Club[]>([]);
     const [members, setMembers] = useState<ClubMember[]>([]);
     const [loading, setLoading] = useState(true);
@@ -31,8 +33,11 @@ export default function AdminUsersPage() {
     const [creating, setCreating] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
+    const [userEmail, setUserEmail] = useState<string | null>(null);
 
-    const supabase = createBrowserClient();
+    useEffect(() => {
+        supabase.auth.getUser().then(({ data }) => setUserEmail(data.user?.email || 'No Session'));
+    }, [supabase]);
 
     const loadData = useCallback(async () => {
         setLoading(true);
@@ -269,6 +274,20 @@ export default function AdminUsersPage() {
                     ))}
                 </div>
             )}
+
+            {/* DEBUG PANEL */}
+            <details className="mt-8 p-4 bg-black/50 rounded-lg border border-gray-800">
+                <summary className="text-xs text-gray-500 cursor-pointer hover:text-gray-300">Debugar Estado (Click para ver)</summary>
+                <div className="mt-2 text-[10px] font-mono text-gray-400 whitespace-pre-wrap">
+                    <p>Loading: {loading ? 'YES' : 'NO'}</p>
+                    <p>Error: {error || 'None'}</p>
+                    <p>Clubs Count: {clubs.length}</p>
+                    <p>Members Count: {members.length}</p>
+                    <p>Supabase URL: {process.env.NEXT_PUBLIC_SUPABASE_URL ? 'Defined' : 'MISSING'}</p>
+                    <p>User Email: {userEmail || 'Not fetched yet'}</p>
+                </div>
+            </details>
         </div>
     );
 }
+
