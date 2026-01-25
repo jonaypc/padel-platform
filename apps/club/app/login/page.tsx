@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { createBrowserClient } from "@padel/supabase";
 import { useRouter } from "next/navigation";
 
@@ -10,42 +10,43 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
     const [checkingSession, setCheckingSession] = useState(true);
     const [msg, setMsg] = useState<string | null>(null);
+    const [mounted, setMounted] = useState(false);
     const router = useRouter();
-    
-    // Lazy initialize supabase client
-    const supabaseRef = useRef<ReturnType<typeof createBrowserClient> | null>(null);
-    const getSupabase = () => {
-        if (!supabaseRef.current) {
-            supabaseRef.current = createBrowserClient();
-        }
-        return supabaseRef.current;
-    };
+
+    // Only run on client side
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     useEffect(() => {
-        const supabase = getSupabase();
+        if (!mounted) return;
+        
+        const supabase = createBrowserClient();
         
         // Check session once on mount
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            if (session) {
-                if (session.user.email === "jonaypc@gmail.com") {
-                    router.replace("/admin");
+        supabase.auth.getSession()
+            .then(({ data: { session } }) => {
+                if (session) {
+                    if (session.user.email === "jonaypc@gmail.com") {
+                        router.replace("/admin");
+                    } else {
+                        router.replace("/dashboard");
+                    }
                 } else {
-                    router.replace("/dashboard");
+                    setCheckingSession(false);
                 }
-            } else {
+            })
+            .catch((error) => {
+                console.error('Session check error:', error);
                 setCheckingSession(false);
-            }
-        }).catch((error) => {
-            console.error('Session check error:', error);
-            setCheckingSession(false);
-        });
-    }, [router]);
+            });
+    }, [mounted, router]);
 
     async function signIn() {
         setLoading(true);
         setMsg(null);
         
-        const supabase = getSupabase();
+        const supabase = createBrowserClient();
 
         const { data, error } = await supabase.auth.signInWithPassword({
             email,
@@ -84,7 +85,8 @@ export default function LoginPage() {
         window.location.href = "/dashboard";
     }
 
-    if (checkingSession) {
+    // Show loading while checking initial state
+    if (!mounted || checkingSession) {
         return (
             <div className="flex items-center justify-center min-h-screen bg-gray-900">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
