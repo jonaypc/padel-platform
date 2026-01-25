@@ -23,6 +23,7 @@ export interface Club extends BaseEntity {
     location: string | null;
     logo_url: string | null;
     booking_duration: number; // Minutos, default 90
+    default_price: number;
     updated_at: string;
 }
 
@@ -41,6 +42,7 @@ export interface Court extends BaseEntity {
     type: CourtType;
     surface: CourtSurface;
     is_active: boolean;
+    price?: number;
     updated_at: string;
 }
 

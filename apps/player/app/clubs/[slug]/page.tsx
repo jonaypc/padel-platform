@@ -17,13 +17,13 @@ interface Club {
     booking_duration: number;
     opening_hour: number;
     closing_hour: number;
+    shifts?: { start: string; end: string }[] | Record<string, { start: string; end: string }[]> | null;
 }
 
 interface Court {
     id: string;
     name: string;
     type: string;
-    surface: string;
 }
 
 interface Reservation {
@@ -61,7 +61,7 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
                 // 1. Club info
                 const { data: clubData, error: clubError } = await supabase
                     .from('clubs')
-                    .select('id, name, slug, location, logo_url, booking_duration, opening_hour, closing_hour')
+                    .select('id, name, slug, location, logo_url, booking_duration, opening_hour, closing_hour, shifts')
                     .eq('slug', slug)
                     .single();
 
@@ -83,7 +83,7 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
                 // 2. Pistas
                 const { data: courtsData } = await supabase
                     .from('courts')
-                    .select('id, name, type, surface')
+                    .select('id, name, type')
                     .eq('club_id', clubData.id)
                     .eq('is_active', true)
                     .order('name');
@@ -197,24 +197,63 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
         setBooking(false);
     };
 
-    // Generar slots usando horario del club
+    // Generar slots usando horario del club (soporte para turnos diarios)
     const timeSlots: Date[] = [];
     if (club) {
-        const startHour = club.opening_hour ?? 9;
-        const endHour = club.closing_hour ?? 22;
-        const current = new Date(selectedDate);
-        current.setHours(startHour, 0, 0, 0);
-
-        const endDateTime = new Date(selectedDate);
-        endDateTime.setHours(endHour, 0, 0, 0);
-
-        // Protección contra bucles infinitos: duración mínima 30 mins
+        // Duración de reserva (min 30 para evitar loops)
         const duration = Math.max(club.booking_duration || 60, 30);
 
-        while (current < endDateTime) {
-            timeSlots.push(new Date(current));
-            current.setMinutes(current.getMinutes() + duration);
+        // Helper para añadir slots en un rango
+        const addSlotsInRange = (startH: number, startM: number, endH: number, endM: number) => {
+            const current = new Date(selectedDate);
+            current.setHours(startH, startM, 0, 0);
+
+            const endDateTime = new Date(selectedDate);
+            endDateTime.setHours(endH, endM, 0, 0);
+
+            while (current < endDateTime) {
+                timeSlots.push(new Date(current));
+                current.setMinutes(current.getMinutes() + duration);
+            }
+        };
+
+        // Tipado seguro para shifts
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const shiftsData = club.shifts as any;
+        let dailyShifts: Array<{ start: string; end: string }> = [];
+
+        if (shiftsData) {
+            if (Array.isArray(shiftsData)) {
+                // Formato antiguo: Array global -> aplica a todos los días
+                dailyShifts = shiftsData;
+            } else {
+                // Formato nuevo: Objeto por día ("1"=Lunes ... "7"=Domingo)
+                let dayKey = selectedDate.getDay(); // 0=Dom, 1=Lun...
+                if (dayKey === 0) dayKey = 7; // Convertir Domingo 0 -> 7
+
+                dailyShifts = shiftsData[dayKey.toString()] || [];
+            }
+        } else {
+            // Fallback a horario continuo (solo si no hay NINGUNA config de shifts)
+            const startHour = club.opening_hour ?? 9;
+            const endHour = club.closing_hour ?? 22;
+            dailyShifts = [{
+                start: `${startHour.toString().padStart(2, '0')}:00`,
+                end: `${endHour.toString().padStart(2, '0')}:00`
+            }];
         }
+
+        // Generar slots para los turnos del día
+        dailyShifts.forEach(shift => {
+            const [sH, sM] = shift.start.split(':').map(Number);
+            const [eH, eM] = shift.end.split(':').map(Number);
+            if (!isNaN(sH) && !isNaN(eH)) {
+                addSlotsInRange(sH, sM || 0, eH, eM || 0);
+            }
+        });
+
+        // Ordenar slots por si el JSON viniera desordenado
+        timeSlots.sort((a, b) => a.getTime() - b.getTime());
     }
 
     // Comprobar disponibilidad de un slot
@@ -368,7 +407,7 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
                                         <div className="flex items-center justify-between">
                                             <div>
                                                 <p className="text-white font-semibold group-hover:text-green-400">{court.name}</p>
-                                                <p className="text-xs text-gray-500">{court.surface} • {court.type}</p>
+                                                <p className="text-xs text-gray-500">{court.type}</p>
                                             </div>
                                             <ChevronRight className="text-gray-600 group-hover:text-green-500" size={20} />
                                         </div>

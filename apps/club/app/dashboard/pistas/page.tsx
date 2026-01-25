@@ -101,14 +101,16 @@ export default function PistasPage() {
             </div>
 
             {/* Botón añadir */}
-            <button
-                onClick={handleOpenCreate}
-                disabled={!clubId}
-                className="w-full bg-gray-800 border border-gray-700 rounded-xl p-4 flex items-center gap-3 hover:bg-gray-750 transition disabled:opacity-50"
-            >
-                <Plus size={20} className="text-green-500" />
-                <span className="text-sm font-medium text-white">Añadir nueva pista</span>
-            </button>
+            <div className="lg:flex lg:items-center lg:justify-between mb-2">
+                <button
+                    onClick={handleOpenCreate}
+                    disabled={!clubId}
+                    className="w-full lg:w-fit bg-gray-800 border border-gray-700 rounded-xl p-4 lg:px-6 flex items-center gap-3 hover:bg-gray-750 transition disabled:opacity-50"
+                >
+                    <Plus size={20} className="text-green-500" />
+                    <span className="text-sm font-medium text-white">Añadir nueva pista</span>
+                </button>
+            </div>
 
             {loading ? (
                 <div className="flex justify-center py-20">
@@ -135,7 +137,7 @@ export default function PistasPage() {
                     </button>
                 </div>
             ) : (
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {courts.map((court) => (
                         <div key={court.id} className="bg-gray-800 border border-gray-700 rounded-xl p-4 hover:bg-gray-750 transition">
                             <div className="flex justify-between items-start">
@@ -145,7 +147,7 @@ export default function PistasPage() {
                                         <span className={`w-2 h-2 rounded-full ${court.is_active ? 'bg-green-500' : 'bg-red-500'}`}></span>
                                     </div>
                                     <p className="text-sm text-gray-400 mt-1">
-                                        {court.type === 'indoor' ? 'Cubierta' : 'Exterior'} • {court.surface === 'crystal' ? 'Cristal' : court.surface === 'wall' ? 'Muro' : 'Sintético'}
+                                        {court.type === 'indoor' ? 'Cubierta' : 'Exterior'}
                                     </p>
                                 </div>
                                 <div className="flex items-center gap-2">

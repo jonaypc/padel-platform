@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createBrowserClient } from "@padel/supabase";
-import type { Court, CourtType, CourtSurface } from "@padel/core";
+import type { Court, CourtType } from "@padel/core";
 
 interface CourtFormProps {
     clubId: string;
@@ -17,7 +17,7 @@ export function CourtForm({ clubId, courtToEdit, onSuccess, onCancel }: CourtFor
 
     const [name, setName] = useState(courtToEdit?.name || "");
     const [type, setType] = useState<CourtType>(courtToEdit?.type || "indoor");
-    const [surface, setSurface] = useState<CourtSurface>(courtToEdit?.surface || "crystal");
+    const [price, setPrice] = useState<string>(courtToEdit?.price?.toString() || "");
 
     const supabase = createBrowserClient();
 
@@ -34,7 +34,7 @@ export function CourtForm({ clubId, courtToEdit, onSuccess, onCancel }: CourtFor
                     .update({
                         name,
                         type,
-                        surface,
+                        price: price ? parseFloat(price) : null,
                         updated_at: new Date().toISOString(),
                     })
                     .eq("id", courtToEdit.id);
@@ -42,14 +42,14 @@ export function CourtForm({ clubId, courtToEdit, onSuccess, onCancel }: CourtFor
                 if (updateError) throw updateError;
             } else {
                 // Create
-                console.log("Creando pista...", { clubId, name, type, surface });
+                console.log("Creando pista...", { clubId, name, type });
                 const { error: insertError } = await supabase
                     .from("courts")
                     .insert({
                         club_id: clubId,
                         name,
                         type,
-                        surface,
+                        price: price ? parseFloat(price) : null,
                         is_active: true,
                     });
 
@@ -89,7 +89,7 @@ export function CourtForm({ clubId, courtToEdit, onSuccess, onCancel }: CourtFor
                 />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Ubicación</label>
                     <div className="relative">
@@ -103,20 +103,24 @@ export function CourtForm({ clubId, courtToEdit, onSuccess, onCancel }: CourtFor
                         </select>
                     </div>
                 </div>
-                <div>
-                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Superficie</label>
-                    <div className="relative">
-                        <select
-                            value={surface}
-                            onChange={(e) => setSurface(e.target.value as CourtSurface)}
-                            className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600 transition-all appearance-none"
-                        >
-                            <option value="crystal">Cristal</option>
-                            <option value="synthetic">Sintética</option>
-                            <option value="wall">Muro</option>
-                        </select>
-                    </div>
+            </div>
+
+            <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Precio Especial (Opcional)</label>
+                <div className="relative">
+                    <input
+                        type="number"
+                        step="0.01"
+                        value={price}
+                        onChange={(e) => setPrice(e.target.value)}
+                        placeholder="Usa el del club por defecto"
+                        className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600 transition-all pr-12"
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600 font-bold">€</span>
                 </div>
+                <p className="text-[10px] text-gray-500 mt-2 italic ml-1">
+                    * Deja vacío para usar el precio predefinido en "Ajustes del Club".
+                </p>
             </div>
 
             {error && (

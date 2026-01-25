@@ -29,7 +29,6 @@ interface Court {
   id: string;
   name: string;
   type: string;
-  surface: string;
 }
 
 interface Reservation {
@@ -94,7 +93,7 @@ export default function OrganizeMatchPage() {
       if (!selectedClub) return;
       const { data } = await supabase
         .from('courts')
-        .select('id, name, type, surface')
+        .select('id, name, type')
         .eq('club_id', selectedClub.id)
         .eq('is_active', true)
         .order('name');
