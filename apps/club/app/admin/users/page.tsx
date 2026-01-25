@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { createBrowserClient } from "@padel/supabase";
-import { UserPlus, Users, Check, X, Eye, EyeOff } from "lucide-react";
+import { UserPlus, Users, Check, X, Eye, EyeOff, Mail } from "lucide-react";
 
 interface Club {
     id: string;
@@ -16,10 +16,12 @@ interface ClubMember {
     role: string;
     clubs: { name: string };
     profiles: { email: string; display_name: string };
+    userEmail?: string; // Email from auth.users
 }
 
 export default function AdminUsersPage() {
-    const supabase = createBrowserClient();
+    // Create supabase client with useMemo to keep stable reference
+    const supabase = useMemo(() => createBrowserClient(), []);
 
     const [clubs, setClubs] = useState<Club[]>([]);
     const [members, setMembers] = useState<ClubMember[]>([]);
@@ -283,17 +285,41 @@ export default function AdminUsersPage() {
                 </div>
             ) : (
                 <div className="space-y-3">
-                    {members.map((m) => (
-                        <div key={m.id} className="bg-gray-800 border border-gray-700 rounded-xl p-4 flex items-center justify-between">
-                            <div>
-                                <h3 className="font-semibold text-white">{m.profiles?.email || 'Email no disponible'}</h3>
-                                <p className="text-sm text-gray-400">
-                                    {m.clubs?.name || 'Club desconocido'} •
-                                    <span className="ml-2 text-xs px-2 py-0.5 rounded bg-gray-700 text-green-400">{m.role}</span>
-                                </p>
+                    {members.map((m) => {
+                        const displayEmail = m.profiles?.email || m.userEmail || null;
+                        const displayName = m.profiles?.display_name || displayEmail?.split('@')[0] || 'Usuario';
+                        
+                        return (
+                            <div key={m.id} className="bg-gray-800 border border-gray-700 rounded-xl p-4">
+                                <div className="flex items-start justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-green-600/20 flex items-center justify-center">
+                                            <Mail size={18} className="text-green-400" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-semibold text-white">
+                                                {displayEmail || 'Email no disponible'}
+                                            </h3>
+                                            {displayName && displayEmail && displayName !== displayEmail.split('@')[0] && (
+                                                <p className="text-xs text-gray-500">{displayName}</p>
+                                            )}
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <span className="text-sm text-gray-400">{m.clubs?.name || 'Club desconocido'}</span>
+                                                <span className="text-xs px-2 py-0.5 rounded bg-gray-700 text-green-400 font-medium">
+                                                    {m.role}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {!displayEmail && (
+                                        <span className="text-[10px] text-gray-600 font-mono">
+                                            ID: {m.user_id?.slice(0, 8)}...
+                                        </span>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
 
