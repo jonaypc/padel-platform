@@ -1,60 +1,79 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { createBrowserClient, useAuth } from "@padel/supabase";
-import { Plus, User, Check, X } from "lucide-react";
+import { createBrowserClient } from "@padel/supabase";
+import { UserPlus, Users, Check, X, Eye, EyeOff } from "lucide-react";
 
-interface ClubUser {
+interface Club {
     id: string;
-    email: string;
+    name: string;
+}
+
+interface ClubMember {
+    id: string;
+    club_id: string;
+    user_id: string;
     role: string;
-    created_at: string;
+    clubs: { name: string };
+    profiles: { email: string; display_name: string };
 }
 
 export default function AdminUsersPage() {
-    const { user } = useAuth();
-    const [users, setUsers] = useState<ClubUser[]>([]);
+    const [clubs, setClubs] = useState<Club[]>([]);
+    const [members, setMembers] = useState<ClubMember[]>([]);
     const [loading, setLoading] = useState(true);
-    const [showForm, setShowForm] = useState(false);
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
+
+    // Formulario
+    const [selectedClub, setSelectedClub] = useState("");
+    const [newEmail, setNewEmail] = useState("");
+    const [newPassword, setNewPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
     const [creating, setCreating] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
 
     const supabase = createBrowserClient();
 
-    const loadUsers = useCallback(async () => {
-        // Cargar usuarios que son club_admin o club_staff
-        const { data } = await supabase
-            .from('profiles')
-            .select('id, email, role, created_at')
-            .in('role', ['club_admin', 'club_staff'])
+    const loadData = useCallback(async () => {
+        // Cargar clubs
+        const { data: clubsData } = await supabase
+            .from('clubs')
+            .select('id, name')
+            .order('name');
+
+        // Cargar miembros de clubs (usuarios asignados)
+        const { data: membersData } = await supabase
+            .from('club_members')
+            .select('id, club_id, user_id, role, clubs(name), profiles(email, display_name)')
             .order('created_at', { ascending: false });
 
-        setUsers(data || []);
+        setClubs(clubsData || []);
+        setMembers((membersData as unknown as ClubMember[]) || []);
         setLoading(false);
     }, [supabase]);
 
     useEffect(() => {
-        loadUsers();
-    }, [loadUsers]);
+        loadData();
+    }, [loadData]);
 
     async function createUser(e: React.FormEvent) {
         e.preventDefault();
-        if (!email.trim() || !password.trim()) return;
+        if (!selectedClub || !newEmail || !newPassword) return;
 
         setCreating(true);
         setError(null);
         setSuccess(null);
 
         try {
+            const { data: { user } } = await supabase.auth.getUser();
+            
             const res = await fetch('/api/admin/create-user', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    email: email.trim(),
-                    password,
+                    email: newEmail,
+                    password: newPassword,
+                    clubId: selectedClub,
                     userEmail: user?.email
                 })
             });
@@ -67,110 +86,157 @@ export default function AdminUsersPage() {
                 return;
             }
 
-            setSuccess(`Usuario ${email} creado correctamente`);
-            setEmail("");
-            setPassword("");
-            setShowForm(false);
-            setCreating(false);
-            loadUsers();
-        } catch {
-            setError('Error de conexión');
+            setSuccess(`✅ Usuario ${newEmail} creado y asignado al club correctamente`);
+            setNewEmail("");
+            setNewPassword("");
+            setSelectedClub("");
+            loadData();
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Error desconocido';
+            setError(message);
+        } finally {
             setCreating(false);
         }
     }
 
+    // Generar contraseña aleatoria
+    function generatePassword() {
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+        let password = '';
+        for (let i = 0; i < 10; i++) {
+            password += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        setNewPassword(password);
+        setShowPassword(true);
+    }
+
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-white">Usuarios de Club</h2>
-                <button
-                    onClick={() => setShowForm(!showForm)}
-                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 transition"
-                >
-                    <Plus size={18} />
-                    Nuevo Usuario
-                </button>
+            <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-white">Crear Usuario de Club</h2>
             </div>
 
             {/* Mensajes */}
             {success && (
-                <div className="bg-green-900/30 border border-green-700 rounded-xl p-3 flex items-center gap-2 text-green-400">
+                <div className="bg-green-900/30 border border-green-700 rounded-xl p-4 flex items-center gap-2 text-green-400">
                     <Check size={18} />
-                    {success}
+                    <span>{success}</span>
                 </div>
             )}
 
             {/* Formulario crear usuario */}
-            {showForm && (
-                <form onSubmit={createUser} className="bg-gray-800 border border-gray-700 rounded-xl p-4 space-y-4">
+            <form onSubmit={createUser} className="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-4">
+                <div className="flex items-center gap-2 mb-4">
+                    <UserPlus className="text-green-500" size={24} />
+                    <h3 className="text-lg font-semibold text-white">Nuevo Usuario para Club</h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-sm text-gray-300 mb-2">Email</label>
+                        <label className="block text-sm text-gray-300 mb-2">Club *</label>
+                        <select
+                            value={selectedClub}
+                            onChange={(e) => setSelectedClub(e.target.value)}
+                            className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-green-500"
+                            required
+                        >
+                            <option value="">Seleccionar club...</option>
+                            {clubs.map((club) => (
+                                <option key={club.id} value={club.id}>{club.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm text-gray-300 mb-2">Email del usuario *</label>
                         <input
                             type="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            placeholder="admin@club.com"
-                            className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-2 text-white placeholder:text-gray-500 focus:outline-none focus:border-green-500"
+                            value={newEmail}
+                            onChange={(e) => setNewEmail(e.target.value)}
+                            placeholder="usuario@ejemplo.com"
+                            className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder:text-gray-500 focus:outline-none focus:border-green-500"
+                            required
                         />
                     </div>
-                    <div>
-                        <label className="block text-sm text-gray-300 mb-2">Contraseña</label>
-                        <input
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            placeholder="Mínimo 6 caracteres"
-                            className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-2 text-white placeholder:text-gray-500 focus:outline-none focus:border-green-500"
-                        />
-                    </div>
-                    {error && (
-                        <div className="bg-red-900/30 border border-red-700 rounded-xl p-3 flex items-center gap-2 text-red-400">
-                            <X size={18} />
-                            {error}
+                </div>
+
+                <div>
+                    <label className="block text-sm text-gray-300 mb-2">Contraseña *</label>
+                    <div className="flex gap-2">
+                        <div className="relative flex-1">
+                            <input
+                                type={showPassword ? "text" : "password"}
+                                value={newPassword}
+                                onChange={(e) => setNewPassword(e.target.value)}
+                                placeholder="Mínimo 6 caracteres"
+                                className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder:text-gray-500 focus:outline-none focus:border-green-500 pr-12"
+                                required
+                                minLength={6}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
+                            >
+                                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                            </button>
                         </div>
-                    )}
-                    <div className="flex gap-3">
-                        <button
-                            type="submit"
-                            disabled={creating || !email.trim() || !password.trim()}
-                            className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-6 py-2 rounded-xl font-semibold transition"
-                        >
-                            {creating ? "Creando..." : "Crear Usuario"}
-                        </button>
                         <button
                             type="button"
-                            onClick={() => setShowForm(false)}
-                            className="border border-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-xl transition"
+                            onClick={generatePassword}
+                            className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition"
                         >
-                            Cancelar
+                            Generar
                         </button>
                     </div>
-                </form>
-            )}
+                    {newPassword && showPassword && (
+                        <p className="text-xs text-yellow-500 mt-2">
+                            ⚠️ Guarda esta contraseña: <span className="font-mono bg-gray-900 px-2 py-1 rounded">{newPassword}</span>
+                        </p>
+                    )}
+                </div>
 
-            {/* Lista de usuarios */}
+                {error && (
+                    <div className="bg-red-900/30 border border-red-700 rounded-xl p-3 flex items-center gap-2 text-red-400">
+                        <X size={18} />
+                        {error}
+                    </div>
+                )}
+
+                <button
+                    type="submit"
+                    disabled={creating || !selectedClub || !newEmail || !newPassword}
+                    className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-6 py-3 rounded-xl font-semibold transition text-lg"
+                >
+                    {creating ? "Creando usuario..." : "Crear Usuario y Asignar a Club"}
+                </button>
+            </form>
+
+            {/* Lista de usuarios de clubs */}
+            <div className="flex items-center gap-2 mt-8 mb-4">
+                <Users className="text-gray-400" size={20} />
+                <h3 className="text-lg font-semibold text-white">Usuarios Actuales de Clubs</h3>
+            </div>
+
             {loading ? (
                 <div className="flex justify-center py-12">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
                 </div>
-            ) : users.length === 0 ? (
+            ) : members.length === 0 ? (
                 <div className="bg-gray-800 border border-gray-700 rounded-xl p-8 text-center">
-                    <User className="mx-auto text-gray-500 mb-3" size={48} />
-                    <p className="text-gray-400">No hay usuarios de club registrados</p>
+                    <Users className="mx-auto text-gray-500 mb-3" size={48} />
+                    <p className="text-gray-400">No hay usuarios asignados a clubs</p>
                 </div>
             ) : (
                 <div className="space-y-3">
-                    {users.map((u) => (
-                        <div key={u.id} className="bg-gray-800 border border-gray-700 rounded-xl p-4 flex items-center justify-between">
+                    {members.map((m) => (
+                        <div key={m.id} className="bg-gray-800 border border-gray-700 rounded-xl p-4 flex items-center justify-between">
                             <div>
-                                <h3 className="font-semibold text-white">{u.email}</h3>
-                                <span className="text-xs px-2 py-0.5 rounded bg-gray-700 text-gray-300">
-                                    {u.role}
-                                </span>
+                                <h3 className="font-semibold text-white">{m.profiles?.email || 'Email no disponible'}</h3>
+                                <p className="text-sm text-gray-400">
+                                    {m.clubs?.name || 'Club desconocido'} • 
+                                    <span className="ml-2 text-xs px-2 py-0.5 rounded bg-gray-700 text-green-400">{m.role}</span>
+                                </p>
                             </div>
-                            <span className="text-xs text-gray-500">
-                                {new Date(u.created_at).toLocaleDateString()}
-                            </span>
                         </div>
                     ))}
                 </div>
