@@ -88,29 +88,58 @@ export default function ReservationsPage() {
     // Cargar datos iniciales
     useEffect(() => {
         async function loadData() {
-            setLoading(true);
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
+            try {
+                setLoading(true);
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) return;
 
-            // 1. Obtener club
-            const { data: members, error } = await supabase
-                .from('club_members')
-                .select('club_id, clubs(*)')
-                .eq('user_id', user.id)
-                .limit(1);
+                // 1. Obtener club
+                const { data: members, error } = await supabase
+                    .from('club_members')
+                    .select('club_id, clubs(id, name, booking_duration, default_price, opening_hour, closing_hour, extras, price_templates, shifts)')
+                    .eq('user_id', user.id)
+                    .limit(1);
 
-            if (error || !members || members.length === 0) {
-                console.error('Error loading club membership:', { error, members });
-                setLoading(false);
-                return;
-            }
+                if (error || !members || members.length === 0) {
+                    console.error('Error loading club membership:', { error, members });
+                    setLoading(false);
+                    return;
+                }
 
-            const member = members[0] as any;
-            const clubDataRaw = member.clubs;
-            const club = Array.isArray(clubDataRaw) ? clubDataRaw[0] : clubDataRaw;
+                const member = members[0] as any;
+                const clubDataRaw = member.clubs;
+                const club = Array.isArray(clubDataRaw) ? clubDataRaw[0] : clubDataRaw;
 
-            if (club) {
+                if (!club) {
+                    setLoading(false);
+                    return;
+                }
+
+                // 2. Obtener pistas
+                // Fetch courts immediately after getting club ID, before setting state
                 const cId = member.club_id;
+
+                let { data: courtsData, error: courtsError } = await supabase
+                    .from('courts')
+                    .select('id, name, price')
+                    .eq('club_id', cId)
+                    .order('name');
+
+                // Fallback for courts if price column issue
+                if (courtsError) {
+                    console.warn('Fallo consulta pistas con precio, intentando fallback:', courtsError);
+                    const { data: fallbackCourts } = await supabase
+                        .from('courts')
+                        .select('id, name')
+                        .eq('club_id', cId)
+                        .order('name');
+                    if (fallbackCourts) {
+                        courtsData = fallbackCourts as any;
+                    }
+                }
+
+                // 3. Batch State Updates
+                // Update everything at once to prevent multiple effects/renders
                 setClubId(cId);
                 setDuration(club.booking_duration || 90);
                 setClubDefaultPrice(club.default_price || 0);
@@ -119,29 +148,13 @@ export default function ReservationsPage() {
                 setAvailableExtras(club.extras || []);
                 setPriceTemplates(club.price_templates || []);
                 setShifts(club.shifts || null);
-
-                // 2. Obtener pistas (incluyendo precio específico)
-                let { data: courtsData, error: courtsError } = await supabase
-                    .from('courts')
-                    .select('id, name, price')
-                    .eq('club_id', cId)
-                    .order('name');
-
-                if (courtsError) {
-                    console.warn('Fallo consulta pistas con precio, intentando fallback:', courtsError);
-                    const { data: fallbackCourts, error: fallbackError } = await supabase
-                        .from('courts')
-                        .select('id, name')
-                        .eq('club_id', cId)
-                        .order('name');
-                    if (!fallbackError) {
-                        courtsData = fallbackCourts as any;
-                    }
-                }
-
                 setCourts(courtsData || []);
+
+            } catch (error) {
+                console.error("Critical error loading initial data:", error);
+            } finally {
+                setLoading(false);
             }
-            setLoading(false);
         }
 
         loadData();
