@@ -60,11 +60,24 @@ export default function AdminUsersPage() {
         setError(null);
 
         try {
+            // Verificar sesión primero
+            const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+            console.log('Session check:', { hasSession: !!session, error: sessionError?.message });
+            
+            if (!session) {
+                setError('No hay sesión activa. Por favor inicia sesión.');
+                setLoading(false);
+                return;
+            }
+
             // Cargar clubs
+            console.log('Fetching clubs...');
             const { data: clubsData, error: clubsError } = await supabase
                 .from('clubs')
                 .select('id, name')
                 .order('name');
+
+            console.log('Clubs result:', { count: clubsData?.length, error: clubsError?.message });
 
             if (clubsError) {
                 setError(`Error cargando clubs: ${clubsError.message}`);
