@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createBrowserClient, useAuth } from "@padel/supabase";
+import { createBrowserClient } from "@padel/supabase";
 
 export default function DashboardPage() {
-    const { user } = useAuth();
     const [stats, setStats] = useState({
         courtsCount: 0,
         reservationsCount: 0,
@@ -12,107 +11,130 @@ export default function DashboardPage() {
         occupancy: 0
     });
     const [loading, setLoading] = useState(true);
-    const supabase = createBrowserClient();
+    const [mounted, setMounted] = useState(false);
+
+    // Mount detection with safety timeout
+    useEffect(() => {
+        setMounted(true);
+        const timeout = setTimeout(() => {
+            setLoading(false);
+        }, 5000);
+        return () => clearTimeout(timeout);
+    }, []);
 
     useEffect(() => {
+        if (!mounted) return;
+
         async function loadStats() {
-            if (!user) return;
-            setLoading(true);
-
-            // 1. Obtener club y configuración básica
-            const { data: memberData } = await supabase
-                .from('club_members')
-                .select('club_id, clubs(booking_duration, opening_hour, closing_hour, shifts)')
-                .eq('user_id', user.id)
-                .single();
-
-            if (!memberData) {
+            const supabase = createBrowserClient();
+            
+            // Verificar sesión
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
                 setLoading(false);
                 return;
             }
+            
+            const user = session.user;
+            setLoading(true);
 
-            const clubId = memberData.club_id;
-            const club = memberData.clubs as any;
-            const duration = club?.booking_duration || 90;
-            const opening = club?.opening_hour || 8;
-            const closing = club?.closing_hour || 23;
-            // Shifts for today
-            const todayIndex = new Date().getDay();
-            const todayKey = todayIndex === 0 ? "7" : todayIndex.toString();
-            const todayShifts = club?.shifts?.[todayKey] || [{ start: `${opening}:00`, end: `${closing}:00` }];
+            try {
+                // 1. Obtener club y configuración básica
+                const { data: memberData } = await supabase
+                    .from('club_members')
+                    .select('club_id, clubs(booking_duration, opening_hour, closing_hour, shifts)')
+                    .eq('user_id', user.id)
+                    .single();
 
-            // 2. Contar pistas
-            const { count: courtsCount } = await supabase
-                .from('courts')
-                .select('*', { count: 'exact', head: true })
-                .eq('club_id', clubId)
-                .eq('is_active', true);
+                if (!memberData) {
+                    setLoading(false);
+                    return;
+                }
 
-            // 3. Obtener reservas de HOY
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const tomorrow = new Date(today);
-            tomorrow.setDate(today.getDate() + 1);
+                const clubId = memberData.club_id;
+                const club = memberData.clubs as any;
+                const duration = club?.booking_duration || 90;
+                const opening = club?.opening_hour || 8;
+                const closing = club?.closing_hour || 23;
+                // Shifts for today
+                const todayIndex = new Date().getDay();
+                const todayKey = todayIndex === 0 ? "7" : todayIndex.toString();
+                const todayShifts = club?.shifts?.[todayKey] || [{ start: `${opening}:00`, end: `${closing}:00` }];
 
-            const { data: reservations, error: resError } = await supabase
-                .from('reservations')
-                .select('price, status')
-                .eq('club_id', clubId)
-                .eq('status', 'confirmed')
-                .gte('start_time', today.toISOString())
-                .lt('start_time', tomorrow.toISOString());
+                // 2. Contar pistas
+                const { count: courtsCount } = await supabase
+                    .from('courts')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('club_id', clubId)
+                    .eq('is_active', true);
 
-            let finalReservations = reservations;
-            if (resError) {
-                console.warn('Fallo consulta reservas con precio, intentando fallback:', resError);
-                const fallback = await supabase
+                // 3. Obtener reservas de HOY
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const tomorrow = new Date(today);
+                tomorrow.setDate(today.getDate() + 1);
+
+                const { data: reservations, error: resError } = await supabase
                     .from('reservations')
-                    .select('status')
+                    .select('price, status')
                     .eq('club_id', clubId)
                     .eq('status', 'confirmed')
                     .gte('start_time', today.toISOString())
                     .lt('start_time', tomorrow.toISOString());
 
-                if (!fallback.error) {
-                    finalReservations = fallback.data as any;
+                let finalReservations = reservations;
+                if (resError) {
+                    console.warn('Fallo consulta reservas con precio, intentando fallback:', resError);
+                    const fallback = await supabase
+                        .from('reservations')
+                        .select('status')
+                        .eq('club_id', clubId)
+                        .eq('status', 'confirmed')
+                        .gte('start_time', today.toISOString())
+                        .lt('start_time', tomorrow.toISOString());
+
+                    if (!fallback.error) {
+                        finalReservations = fallback.data as any;
+                    }
                 }
-            }
 
-            const resCount = finalReservations?.length || 0;
-            const totalIncome = finalReservations?.reduce((sum, res: any) => sum + (Number(res.price) || 0), 0) || 0;
+                const resCount = finalReservations?.length || 0;
+                const totalIncome = finalReservations?.reduce((sum, res: any) => sum + (Number(res.price) || 0), 0) || 0;
 
-            // 4. Calcular ocupación
-            // Slots totales = pistas * (horas abiertas * 60 / duración)
-            // 4. Calcular ocupación real basada en shifts
-            let totalMinutesOpen = 0;
-            if (Array.isArray(todayShifts)) {
-                todayShifts.forEach((s: any) => {
-                    const [StartH, StartM] = s.start.split(':').map(Number);
-                    const [EndH, EndM] = s.end.split(':').map(Number);
-                    const startMin = StartH * 60 + StartM;
-                    const endMin = EndH * 60 + EndM;
-                    totalMinutesOpen += (endMin - startMin);
+                // 4. Calcular ocupación real basada en shifts
+                let totalMinutesOpen = 0;
+                if (Array.isArray(todayShifts)) {
+                    todayShifts.forEach((s: any) => {
+                        const [StartH, StartM] = s.start.split(':').map(Number);
+                        const [EndH, EndM] = s.end.split(':').map(Number);
+                        const startMin = StartH * 60 + StartM;
+                        const endMin = EndH * 60 + EndM;
+                        totalMinutesOpen += (endMin - startMin);
+                    });
+                } else {
+                    // Fallback simple
+                    totalMinutesOpen = (closing - opening) * 60;
+                }
+
+                const slotsPerCourt = Math.floor(totalMinutesOpen / duration);
+                const totalPossibleSlots = (courtsCount || 0) * slotsPerCourt;
+                const occupancy = totalPossibleSlots > 0 ? Math.round((resCount / totalPossibleSlots) * 100) : 0;
+
+                setStats({
+                    courtsCount: courtsCount || 0,
+                    reservationsCount: resCount,
+                    income: totalIncome,
+                    occupancy: occupancy
                 });
-            } else {
-                // Fallback simple
-                totalMinutesOpen = (closing - opening) * 60;
+            } catch (err) {
+                console.error('Error loading stats:', err);
+            } finally {
+                setLoading(false);
             }
-
-            const slotsPerCourt = Math.floor(totalMinutesOpen / duration);
-            const totalPossibleSlots = (courtsCount || 0) * slotsPerCourt;
-            const occupancy = totalPossibleSlots > 0 ? Math.round((resCount / totalPossibleSlots) * 100) : 0;
-
-            setStats({
-                courtsCount: courtsCount || 0,
-                reservationsCount: resCount,
-                income: totalIncome,
-                occupancy: occupancy
-            });
-            setLoading(false);
         }
 
         loadStats();
-    }, [user, supabase]);
+    }, [mounted]);
 
     if (loading) return <div className="flex justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div></div>;
 
