@@ -58,43 +58,58 @@ export default function LoginPage() {
         setLoading(true);
         setMsg(null);
         
-        const supabase = createBrowserClient();
+        try {
+            const supabase = createBrowserClient();
 
-        const { data, error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-        });
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email,
+                password,
+            });
 
-        if (error) {
-            setLoading(false);
-            setMsg(error.message);
-            return;
-        }
+            if (error) {
+                setLoading(false);
+                setMsg(error.message);
+                return;
+            }
 
-        // Superadmin tiene acceso directo
-        const SUPERADMIN_EMAIL = "jonaypc@gmail.com";
-        if (data.user.email === SUPERADMIN_EMAIL) {
+            // Superadmin tiene acceso directo
+            const SUPERADMIN_EMAIL = "jonaypc@gmail.com";
+            if (data.user.email === SUPERADMIN_EMAIL) {
+                setMsg("Login correcto ✅");
+                // Use replace to avoid adding to history
+                window.location.replace("/admin");
+                return;
+            }
+
+            // Verificar que el usuario tiene acceso a algún club
+            const { data: membership, error: membershipError } = await supabase
+                .from('club_members')
+                .select('club_id')
+                .eq('user_id', data.user.id)
+                .limit(1);
+
+            if (membershipError) {
+                console.error('Membership check error:', membershipError);
+                // Still allow login even if membership check fails
+                setMsg("Login correcto ✅");
+                window.location.replace("/dashboard");
+                return;
+            }
+
+            if (!membership || membership.length === 0) {
+                await supabase.auth.signOut();
+                setLoading(false);
+                setMsg("No tienes acceso a ningún club. Contacta con el administrador.");
+                return;
+            }
+
             setMsg("Login correcto ✅");
-            window.location.href = "/admin";
-            return;
-        }
-
-        // Verificar que el usuario tiene acceso a algún club
-        const { data: membership } = await supabase
-            .from('club_members')
-            .select('club_id')
-            .eq('user_id', data.user.id)
-            .limit(1);
-
-        if (!membership || membership.length === 0) {
-            await supabase.auth.signOut();
+            window.location.replace("/dashboard");
+        } catch (err) {
+            console.error('SignIn error:', err);
             setLoading(false);
-            setMsg("No tienes acceso a ningún club. Contacta con el administrador.");
-            return;
+            setMsg("Error al iniciar sesión. Inténtalo de nuevo.");
         }
-
-        setMsg("Login correcto ✅");
-        window.location.href = "/dashboard";
     }
 
     // Show loading while checking initial state
