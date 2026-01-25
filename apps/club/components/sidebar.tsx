@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { LayoutDashboard, Grid3X3, Calendar, Settings, LogOut } from "lucide-react";
+import { createBrowserClient } from "@padel/supabase";
 
 const NAV_ITEMS = [
     { name: "Resumen", href: "/dashboard", icon: LayoutDashboard },
@@ -13,6 +14,13 @@ const NAV_ITEMS = [
 
 export function Sidebar() {
     const pathname = usePathname();
+    const router = useRouter();
+    const supabase = createBrowserClient();
+
+    const handleLogout = async () => {
+        await supabase.auth.signOut();
+        router.replace("/login");
+    };
 
     return (
         <div className="w-64 bg-gray-900 border-r border-gray-800 flex flex-col h-screen sticky top-0">
@@ -45,7 +53,10 @@ export function Sidebar() {
             </nav>
 
             <div className="p-6 border-t border-gray-800">
-                <button className="flex items-center space-x-3 px-4 py-3 text-gray-400 hover:text-red-400 w-full transition-all duration-200 hover:bg-red-500/5 rounded-xl group font-medium text-xs">
+                <button 
+                    onClick={handleLogout}
+                    className="flex items-center space-x-3 px-4 py-3 text-gray-400 hover:text-red-400 w-full transition-all duration-200 hover:bg-red-500/5 rounded-xl group font-medium text-xs"
+                >
                     <LogOut size={16} className="group-hover:translate-x-1 transition-transform" />
                     <span>Cerrar Sesión</span>
                 </button>
