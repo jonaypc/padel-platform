@@ -1062,8 +1062,10 @@ export default function ReservationsPage() {
                                                                 const val = parseFloat(e.target.value);
                                                                 if (!isNaN(val)) {
                                                                     const newPlayers = [...reservationPlayers];
-                                                                    newPlayers[idx].courtPrice = val;
-                                                                    setReservationPlayers(newPlayers);
+                                                                    if (newPlayers[idx]) {
+                                                                        newPlayers[idx].courtPrice = val;
+                                                                        setReservationPlayers(newPlayers);
+                                                                    }
                                                                 }
                                                             }}
                                                             value=""
@@ -1095,8 +1097,10 @@ export default function ReservationsPage() {
                                                                 onChange={(e) => {
                                                                     const val = parseFloat(e.target.value);
                                                                     const newPlayers = [...reservationPlayers];
-                                                                    newPlayers[idx].courtPrice = isNaN(val) ? 0 : val;
-                                                                    setReservationPlayers(newPlayers);
+                                                                    if (newPlayers[idx]) {
+                                                                        newPlayers[idx].courtPrice = isNaN(val) ? 0 : val;
+                                                                        setReservationPlayers(newPlayers);
+                                                                    }
                                                                 }}
                                                                 className="w-full bg-gray-900 border border-gray-600 rounded-md px-1 py-1.5 text-right text-xs text-blue-300 focus:border-blue-500 outline-none"
                                                                 title="Precio Pista Individual"
@@ -1182,17 +1186,19 @@ export default function ReservationsPage() {
                                                                         key={pIdx}
                                                                         onClick={() => {
                                                                             const newItems = [...reservationItems];
-                                                                            const currentAssignees = newItems[idx].assignedTo || [];
-                                                                            let newAssignees;
+                                                                            if (newItems[idx]) {
+                                                                                const currentAssignees = newItems[idx].assignedTo || [];
+                                                                                let newAssignees;
 
-                                                                            if (currentAssignees.includes(pIdx.toString())) {
-                                                                                newAssignees = currentAssignees.filter(id => id !== pIdx.toString());
-                                                                            } else {
-                                                                                newAssignees = [...currentAssignees, pIdx.toString()];
+                                                                                if (currentAssignees.includes(pIdx.toString())) {
+                                                                                    newAssignees = currentAssignees.filter(id => id !== pIdx.toString());
+                                                                                } else {
+                                                                                    newAssignees = [...currentAssignees, pIdx.toString()];
+                                                                                }
+
+                                                                                newItems[idx].assignedTo = newAssignees;
+                                                                                setReservationItems(newItems);
                                                                             }
-
-                                                                            newItems[idx].assignedTo = newAssignees;
-                                                                            setReservationItems(newItems);
                                                                         }}
                                                                         className={`w-5 h-5 flex items-center justify-center rounded text-[9px] font-bold border transition
                                                                             ${isAssigned
