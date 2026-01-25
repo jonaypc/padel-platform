@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { createBrowserClient } from "@padel/supabase";
 import { useRouter } from "next/navigation";
 
@@ -11,23 +11,35 @@ export default function LoginPage() {
     const [checkingSession, setCheckingSession] = useState(true);
     const [msg, setMsg] = useState<string | null>(null);
 
-    const supabase = createBrowserClient();
+    // Create supabase client with useMemo to keep stable reference
+    const supabase = useMemo(() => createBrowserClient(), []);
     const router = useRouter();
 
     useEffect(() => {
+        let isMounted = true;
+        
         async function checkSession() {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-                if (session.user.email === "jonaypc@gmail.com") {
-                    router.replace("/admin");
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!isMounted) return;
+                
+                if (session) {
+                    if (session.user.email === "jonaypc@gmail.com") {
+                        router.replace("/admin");
+                    } else {
+                        router.replace("/dashboard");
+                    }
                 } else {
-                    router.replace("/dashboard"); // O verificar club primero si quieres ser estricto
+                    setCheckingSession(false);
                 }
-            } else {
-                setCheckingSession(false);
+            } catch (error) {
+                console.error('Session check error:', error);
+                if (isMounted) setCheckingSession(false);
             }
         }
         checkSession();
+        
+        return () => { isMounted = false; };
     }, [router, supabase]);
 
     async function signIn() {
