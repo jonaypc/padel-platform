@@ -123,6 +123,37 @@ export default function AdminClubsPage() {
                                 </span>
                                 <button
                                     onClick={async () => {
+                                        // Verificar si el usuario ya es miembro
+                                        const { data: { user } } = await supabase.auth.getUser();
+                                        if (!user) return;
+
+                                        const { data: existingMember } = await supabase
+                                            .from('club_members')
+                                            .select('id')
+                                            .eq('club_id', club.id)
+                                            .eq('user_id', user.id)
+                                            .single();
+
+                                        if (!existingMember) {
+                                            // Añadir como admin del club
+                                            await supabase
+                                                .from('club_members')
+                                                .insert({
+                                                    club_id: club.id,
+                                                    user_id: user.id,
+                                                    role: 'admin'
+                                                });
+                                        }
+
+                                        // Ir al dashboard
+                                        window.location.href = '/dashboard';
+                                    }}
+                                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition"
+                                >
+                                    Gestionar
+                                </button>
+                                <button
+                                    onClick={async () => {
                                         if (!confirm(`¿Eliminar el club "${club.name}"? Esta acción no se puede deshacer.`)) return;
 
                                         const { data: { user } } = await supabase.auth.getUser();
