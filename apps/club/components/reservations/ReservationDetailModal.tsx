@@ -132,7 +132,12 @@ export function ReservationDetailModal({
 
     return (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/80 backdrop-blur-md p-0 md:p-4 animate-in fade-in duration-300">
-            <div className={`bg-gray-900 border-t md:border ${reservation.type === 'maintenance' ? 'border-red-900/50' : 'border-gray-700/50'} rounded-t-3xl md:rounded-2xl shadow-[0_0_50px_-12px_rgba(0,0,0,0.8)] w-full max-w-2xl h-[92vh] md:h-auto md:max-h-[90vh] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-500 md:duration-300 ring-1 ring-white/5`}>
+            <div className={`bg-gray-900 border-t md:border ${reservation.type === 'maintenance' ? 'border-red-900/50' : 'border-gray-700/50'} rounded-t-3xl md:rounded-2xl shadow-[0_0_50px_-12px_rgba(0,0,0,0.8)] w-full max-w-2xl h-[92dvh] md:h-auto md:max-h-[90vh] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-500 md:duration-300 ring-1 ring-white/5`}>
+
+                {/* DRAG HANDLE (Mobile) */}
+                <div className="flex justify-center pt-2 md:hidden">
+                    <div className="w-12 h-1.5 bg-gray-700/50 rounded-full" />
+                </div>
 
                 {/* HEADER */}
                 <div className="flex justify-between items-center p-5 border-b border-gray-800 bg-gray-900/50 shrink-0">
@@ -169,7 +174,7 @@ export function ReservationDetailModal({
                 </div>
 
                 {/* BODY (Scrollable) */}
-                <div className="flex-1 overflow-y-auto p-5 md:p-8 space-y-10 overscrell-contain custom-scrollbar bg-gradient-to-b from-gray-900 to-gray-950">
+                <div className="flex-1 overflow-y-auto p-5 md:p-8 space-y-10 overscroll-contain custom-scrollbar bg-gradient-to-b from-gray-900 to-gray-950">
 
                     {/* Alerta de Cancelación */}
                     {confirmCancel && (
@@ -360,7 +365,7 @@ export function ReservationDetailModal({
                 </div>
 
                 {/* FOOTER */}
-                <div className="p-5 md:p-8 bg-gray-900 border-t border-gray-800 shrink-0 flex flex-col md:flex-row gap-4">
+                <div className="p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] md:p-8 bg-gray-900 border-t border-gray-800 shrink-0 flex flex-col md:flex-row gap-4">
                     {!confirmCancel && (
                         <>
                             {mode === 'view' ? (

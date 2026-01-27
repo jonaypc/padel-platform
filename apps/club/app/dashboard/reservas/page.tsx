@@ -108,7 +108,7 @@ export default function ReservasPage() {
     const timeSlots = generateTimeSlots();
 
     return (
-        <div className="h-[calc(100vh-100px)] flex flex-col gap-4">
+        <div className="h-[calc(100dvh-100px)] flex flex-col gap-4">
 
             {/* Header / Navegación */}
             <div className="flex justify-between items-center bg-gray-900/50 p-2 rounded-xl border border-gray-700">

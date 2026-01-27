@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, User, Search, Calendar, Clock } from "lucide-react";
+import { X, User, Search } from "lucide-react";
 import type { Court, ReservationType } from "@padel/core";
 import {
     ClubConfig,
@@ -148,16 +148,16 @@ export function CreateReservationModal({
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     };
 
-    const getEndTime = (start: Date) => {
-        if (!clubConfig) return start;
-        const end = new Date(start);
-        end.setMinutes(start.getMinutes() + clubConfig.duration);
-        return end;
-    };
+
 
     return (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/80 backdrop-blur-md p-0 md:p-4 animate-in fade-in duration-300">
-            <div className="bg-gray-900 border-t md:border border-gray-700/50 rounded-t-3xl md:rounded-2xl shadow-[0_0_50px_-12px_rgba(0,0,0,0.8)] w-full max-w-2xl h-[92vh] md:h-auto md:max-h-[90vh] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-500 md:duration-300 ring-1 ring-white/5">
+            <div className="bg-gray-900 border-t md:border border-gray-700/50 rounded-t-3xl md:rounded-2xl shadow-[0_0_50px_-12px_rgba(0,0,0,0.8)] w-full max-w-2xl h-[92dvh] md:h-auto md:max-h-[90vh] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-500 md:duration-300 ring-1 ring-white/5">
+
+                {/* DRAG HANDLE (Mobile) */}
+                <div className="flex justify-center pt-2 md:hidden">
+                    <div className="w-12 h-1.5 bg-gray-700/50 rounded-full" />
+                </div>
 
                 {/* HEADER */}
                 <div className="flex justify-between items-center p-5 border-b border-gray-800 bg-gray-900/50 shrink-0">
@@ -211,7 +211,7 @@ export function CreateReservationModal({
                 </div>
 
                 {/* BODY (Scrollable) */}
-                <div className="flex-1 overflow-y-auto p-5 md:p-8 space-y-10 overscrell-contain custom-scrollbar bg-gradient-to-b from-gray-900 to-gray-950">
+                <div className="flex-1 overflow-y-auto p-5 md:p-8 space-y-10 overscroll-contain custom-scrollbar bg-gradient-to-b from-gray-900 to-gray-950">
 
                     {activeTab === 'reservation' && (
                         <>
@@ -327,7 +327,7 @@ export function CreateReservationModal({
                                                     }`}
                                             >
                                                 <span className="text-lg leading-none mb-1">{tpl.price}€</span>
-                                                <span className="opacity-50 text-[8px] uppercase">{tpl.name || 'BASE'}</span>
+                                                <span className="opacity-50 text-[8px] uppercase">{tpl.label || 'BASE'}</span>
                                             </button>
                                         ))}
                                     </div>
@@ -380,7 +380,7 @@ export function CreateReservationModal({
                 </div>
 
                 {/* FOOTER */}
-                <div className="p-5 md:p-8 bg-gray-900 border-t border-gray-800 shrink-0 flex flex-col md:flex-row gap-4">
+                <div className="p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] md:p-8 bg-gray-900 border-t border-gray-800 shrink-0 flex flex-col md:flex-row gap-4">
                     <button
                         onClick={onClose}
                         className="order-2 md:order-1 flex-1 md:flex-none px-8 py-4 text-xs font-black text-gray-500 hover:text-white rounded-2xl transition-all uppercase tracking-widest border border-transparent hover:border-gray-800"
