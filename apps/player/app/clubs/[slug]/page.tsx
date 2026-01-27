@@ -213,8 +213,15 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
             const endDateTime = new Date(selectedDate);
             endDateTime.setHours(endH, endM, 0, 0);
 
-            while (current < endDateTime) {
-                timeSlots.push(new Date(current));
+            // FIX: Comprobar que el slot TERMINA antes o igual al fin del turno
+            // Igual que en la App del Club
+            while (current.getTime() < endDateTime.getTime()) {
+                const slotEnd = new Date(current);
+                slotEnd.setMinutes(current.getMinutes() + duration);
+
+                if (slotEnd.getTime() <= endDateTime.getTime()) {
+                    timeSlots.push(new Date(current));
+                }
                 current.setMinutes(current.getMinutes() + duration);
             }
         };
@@ -235,9 +242,11 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
 
                 dailyShifts = shiftsData[dayKey.toString()] || [];
             }
-        } else {
-            // Fallback a horario continuo (solo si no hay NINGUNA config de shifts)
-            const startHour = club.opening_hour ?? 9;
+        }
+
+        // Si no hay turnos definidos, usar horario continuo (Fallback)
+        if (dailyShifts.length === 0) {
+            const startHour = club.opening_hour ?? 8;
             const endHour = club.closing_hour ?? 22;
             dailyShifts = [{
                 start: `${startHour.toString().padStart(2, '0')}:00`,
@@ -262,14 +271,20 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
     const checkAvailability = (time: Date) => {
         if (!club) return [];
 
+        // Calcular fin de la reserva propuesta
+        const proposedStart = time.getTime();
+        const proposedEnd = new Date(time).getTime() + (club.booking_duration * 60000);
+
         const availableCourts = courts.filter(court => {
             // Buscar si hay reserva que solape
             const hasCollision = reservations.some(res => {
                 if (res.court_id !== court.id) return false;
-                const resStart = new Date(res.start_time).getTime();
-                // Simplificación: coincidencia exacta de inicio
-                // Idealmente checkear rangos
-                return Math.abs(resStart - time.getTime()) < 60000; // 1 min tolerancia
+
+                const existingStart = new Date(res.start_time).getTime();
+                const existingEnd = new Date(res.end_time).getTime();
+
+                // Logic de colisión de rangos: (StartA < EndB) y (EndA > StartB)
+                return proposedStart < existingEnd && proposedEnd > existingStart;
             });
             return !hasCollision;
         });
