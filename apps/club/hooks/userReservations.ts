@@ -75,14 +75,19 @@ export function useReservations() {
     // Cargar datos iniciales del club
     useEffect(() => {
         async function loadClubData() {
+            console.log("loadClubData: Starting...");
             try {
                 setLoading(true);
-                const { data: { user } } = await supabase.auth.getUser();
+                const { data: { user }, error: authError } = await supabase.auth.getUser();
+                console.log("loadClubData: User check", { user: user?.id, authError });
+
                 if (!user) {
+                    console.log("loadClubData: No user, stopping.");
                     setLoading(false);
                     return;
                 }
 
+                console.log("loadClubData: Fetching members...");
                 const { data: members, error } = await supabase
                     .from('club_members')
                     .select(`
@@ -96,6 +101,8 @@ export function useReservations() {
                     .eq('user_id', user.id)
                     .limit(1);
 
+                console.log("loadClubData: Members fetch result", { members, error });
+
                 if (error || !members?.length) {
                     console.error('Error loading club:', error);
                     return;
@@ -105,15 +112,21 @@ export function useReservations() {
                 const member = members[0] as any;
                 const club = Array.isArray(member.clubs) ? member.clubs[0] : member.clubs;
 
-                if (!club) return;
+                if (!club) {
+                    console.log("loadClubData: No club data found inside member");
+                    return;
+                }
 
                 // Cargar pistas
-                const { data: courtsData } = await supabase
+                console.log("loadClubData: Fetching courts...");
+                const { data: courtsData, error: courtsError } = await supabase
                     .from('courts')
                     .select('id, name, price, type, surface, is_active')
                     .eq('club_id', member.club_id)
                     .eq('is_active', true)
                     .order('name');
+
+                console.log("loadClubData: Courts result", { courtsData: courtsData?.length, courtsError });
 
                 setCourts((courtsData as Court[]) || []);
                 setClubConfig({
@@ -126,9 +139,11 @@ export function useReservations() {
                     extras: club.extras || [],
                     priceTemplates: club.price_templates || [],
                 });
+                console.log("loadClubData: Config set.");
             } catch (error) {
                 console.error("Error loading club data:", error);
             } finally {
+                console.log("loadClubData: Finally block reached. Setting loading=false");
                 setLoading(false);
             }
         }
