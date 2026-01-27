@@ -205,22 +205,18 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
 
         const duration = Math.max(club.booking_duration || 60, 30);
 
-        // 1. Obtener turnos diarios (Shifts)
+        // 1. Obtener turnos diarios (Shifts) - LÓGICA CLUB APP EXACTA
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const shiftsData = club.shifts as any;
         let dailyShifts: Array<{ start: string; end: string }> = [];
 
-        if (shiftsData) {
-            if (Array.isArray(shiftsData)) {
-                dailyShifts = shiftsData;
-            } else {
-                let dayKey = selectedDate.getDay();
-                if (dayKey === 0) dayKey = 7;
-                dailyShifts = shiftsData[dayKey.toString()] || [];
-            }
+        const dayKey = selectedDate.getDay() === 0 ? "7" : selectedDate.getDay().toString();
+
+        if (shiftsData && Array.isArray(shiftsData[dayKey])) {
+            dailyShifts = shiftsData[dayKey];
         }
 
-        // Fallback
+        // Fallback: Si no hay turnos para HOY, usar horario apertura/cierre
         if (dailyShifts.length === 0) {
             const startHour = club.opening_hour ?? 8;
             const endHour = club.closing_hour ?? 22;
