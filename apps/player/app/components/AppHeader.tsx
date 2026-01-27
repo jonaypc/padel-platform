@@ -32,10 +32,10 @@ export default function AppHeader() {
     loadData();
   }, []);
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     await supabase.auth.signOut();
-    router.replace("/login");
-  };
+    window.location.href = "/login";
+  }, [supabase]);
 
   return (
     <header className="bg-gray-900 border-b border-gray-800 sticky top-0 z-40">

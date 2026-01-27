@@ -24,8 +24,8 @@ export function Sidebar() {
 
     const handleLogout = useCallback(async () => {
         await supabase.auth.signOut();
-        router.replace("/login");
-    }, [supabase, router]);
+        window.location.href = "/login";
+    }, [supabase]);
 
     return (
         <div className="w-64 bg-gray-900 border-r border-gray-800 flex flex-col h-screen sticky top-0">

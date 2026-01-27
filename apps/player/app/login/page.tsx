@@ -51,40 +51,46 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-50 p-6">
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow">
-        <h1 className="text-2xl font-semibold">Entrar</h1>
-        <p className="mt-2 text-sm text-zinc-600">
-          Accede para registrar tus partidos de pádel.
-        </p>
+    <div className="min-h-screen flex items-center justify-center bg-gray-900 p-6">
+      <div className="w-full max-w-md rounded-2xl bg-gray-800 border border-gray-700 p-8 shadow-2xl">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-white mb-2">🎾 PÁDEL</h1>
+          <p className="text-gray-400">Accede para registrar tus partidos</p>
+        </div>
 
-        <div className="mt-6 space-y-3">
-          <input
-            className="w-full rounded-xl border px-4 py-3"
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-300 ml-1">Email</label>
+            <input
+              className="w-full rounded-xl bg-gray-900 border border-gray-700 px-4 py-3 text-white placeholder:text-gray-500 focus:outline-none focus:border-green-500 transition"
+              type="email"
+              placeholder="tu@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
 
-          <input
-            className="w-full rounded-xl border px-4 py-3"
-            type="password"
-            placeholder="Contraseña"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-300 ml-1">Contraseña</label>
+            <input
+              className="w-full rounded-xl bg-gray-900 border border-gray-700 px-4 py-3 text-white placeholder:text-gray-500 focus:outline-none focus:border-green-500 transition"
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
 
           <button
-            className="w-full rounded-xl bg-black py-3 text-white disabled:opacity-50"
+            className="w-full mt-2 rounded-xl bg-green-600 hover:bg-green-700 py-3.5 text-white font-bold transition shadow-lg shadow-green-900/20 disabled:opacity-50"
             onClick={signIn}
             disabled={loading || !email || !password}
           >
-            {loading ? "Cargando..." : "Iniciar sesión"}
+            {loading ? "Iniciando..." : "Iniciar sesión"}
           </button>
 
           <button
-            className="w-full rounded-xl border py-3 disabled:opacity-50"
+            className="w-full rounded-xl bg-gray-900 border border-gray-700 py-3 text-gray-300 hover:bg-gray-750 transition disabled:opacity-50"
             onClick={signUp}
             disabled={loading || !email || !password}
           >
@@ -93,15 +99,15 @@ export default function LoginPage() {
 
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-zinc-200" />
+              <span className="w-full border-t border-gray-700" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-white px-2 text-zinc-500">O continúa con</span>
+              <span className="bg-gray-800 px-2 text-gray-500 font-medium">O continúa con</span>
             </div>
           </div>
 
           <button
-            className="w-full flex items-center justify-center gap-3 rounded-xl border py-3 transition hover:bg-zinc-50 disabled:opacity-50"
+            className="w-full flex items-center justify-center gap-3 rounded-xl bg-gray-900 border border-gray-700 py-3 text-white font-semibold transition hover:bg-gray-750 disabled:opacity-50"
             onClick={signInWithGoogle}
             disabled={loading}
           >
@@ -127,7 +133,7 @@ export default function LoginPage() {
           </button>
 
           {msg && (
-            <div className="rounded-xl bg-zinc-100 p-3 text-sm text-zinc-700">
+            <div className={`mt-4 rounded-xl p-4 text-sm font-medium ${msg.includes("✅") ? "bg-green-900/30 text-green-400 border border-green-700/50" : "bg-red-900/30 text-red-400 border border-red-700/50"}`}>
               {msg}
             </div>
           )}
