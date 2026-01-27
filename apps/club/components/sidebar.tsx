@@ -17,7 +17,6 @@ const NAV_ITEMS = [
 
 export function Sidebar() {
     const pathname = usePathname();
-    const router = useRouter();
 
     // Memoizar el cliente de Supabase para evitar recrearlo en cada render
     const supabase = useMemo(() => createBrowserClient(), []);

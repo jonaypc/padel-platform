@@ -1,12 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
 export default function AppHeader() {
-  const router = useRouter();
   const [userName, setUserName] = useState<string>("");
   const [unreadCount, setUnreadCount] = useState(0);
 
