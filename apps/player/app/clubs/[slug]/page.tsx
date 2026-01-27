@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
@@ -32,13 +32,14 @@ interface Reservation {
     start_time: string;
     end_time: string;
     court_id: string;
+    id?: string;
+    status?: string;
 }
 
 export default function ClubDetailPage({ params }: { params: Promise<{ slug: string }> }) {
     const router = useRouter();
     const [slug, setSlug] = useState<string>("");
 
-    // Unwrap params using useEffect or use() hook if available. For now standard async resolution.
     useEffect(() => {
         params.then(p => setSlug(p.slug));
     }, [params]);
@@ -60,7 +61,6 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
 
         async function loadClubData() {
             try {
-                // 1. Club info
                 const { data: clubData, error: clubError } = await supabase
                     .from('clubs')
                     .select('id, name, slug, location, logo_url, booking_duration, default_price, opening_hour, closing_hour, shifts')
@@ -82,7 +82,6 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
                 }
                 setClub(clubData);
 
-                // 2. Pistas
                 const { data: courtsData } = await supabase
                     .from('courts')
                     .select('id, name, type, price')
@@ -108,7 +107,7 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
         };
     }, [slug]);
 
-    // Cargar disponibilidad al cambiar fecha
+    // Cargar disponibilidad
     useEffect(() => {
         if (!club) return;
         let isMounted = true;
@@ -125,7 +124,7 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
 
                 const { data, error } = await supabase
                     .from('reservations')
-                    .select('start_time, end_time, court_id')
+                    .select('id, start_time, end_time, court_id, status')
                     .eq('club_id', clubId)
                     .gte('start_time', startOfDay.toISOString())
                     .lte('end_time', endOfDay.toISOString())
@@ -185,12 +184,13 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
         } else {
             alert('¡Reserva confirmada!');
             setSelectedSlot(null);
-            // Recargar reservas
+
+            // Recargar disponibilidad
             const startOfDay = new Date(selectedDate);
             startOfDay.setHours(0, 0, 0, 0);
             const { data } = await supabase
                 .from('reservations')
-                .select('start_time, end_time, court_id')
+                .select('id, start_time, end_time, court_id, status')
                 .eq('club_id', club.id)
                 .gte('start_time', startOfDay.toISOString())
                 .neq('status', 'cancelled');
@@ -199,52 +199,28 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
         setBooking(false);
     };
 
-    // Generar slots usando horario del club (soporte para turnos diarios)
-    const timeSlots: Date[] = [];
-    if (club) {
-        // Duración de reserva (min 30 para evitar loops)
+    // --- LÓGICA DE GENERACIÓN DE SLOTS (SMART SLOTS) ---
+    const generateTimeSlots = useCallback(() => {
+        if (!club) return [];
+
         const duration = Math.max(club.booking_duration || 60, 30);
 
-        // Helper para añadir slots en un rango
-        const addSlotsInRange = (startH: number, startM: number, endH: number, endM: number) => {
-            const current = new Date(selectedDate);
-            current.setHours(startH, startM, 0, 0);
-
-            const endDateTime = new Date(selectedDate);
-            endDateTime.setHours(endH, endM, 0, 0);
-
-            // FIX: Comprobar que el slot TERMINA antes o igual al fin del turno
-            // Igual que en la App del Club
-            while (current.getTime() < endDateTime.getTime()) {
-                const slotEnd = new Date(current);
-                slotEnd.setMinutes(current.getMinutes() + duration);
-
-                if (slotEnd.getTime() <= endDateTime.getTime()) {
-                    timeSlots.push(new Date(current));
-                }
-                current.setMinutes(current.getMinutes() + duration);
-            }
-        };
-
-        // Tipado seguro para shifts
+        // 1. Obtener turnos diarios (Shifts)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const shiftsData = club.shifts as any;
         let dailyShifts: Array<{ start: string; end: string }> = [];
 
         if (shiftsData) {
             if (Array.isArray(shiftsData)) {
-                // Formato antiguo: Array global -> aplica a todos los días
                 dailyShifts = shiftsData;
             } else {
-                // Formato nuevo: Objeto por día ("1"=Lunes ... "7"=Domingo)
-                let dayKey = selectedDate.getDay(); // 0=Dom, 1=Lun...
-                if (dayKey === 0) dayKey = 7; // Convertir Domingo 0 -> 7
-
+                let dayKey = selectedDate.getDay();
+                if (dayKey === 0) dayKey = 7;
                 dailyShifts = shiftsData[dayKey.toString()] || [];
             }
         }
 
-        // Si no hay turnos definidos, usar horario continuo (Fallback)
+        // Fallback
         if (dailyShifts.length === 0) {
             const startHour = club.opening_hour ?? 8;
             const endHour = club.closing_hour ?? 22;
@@ -254,36 +230,92 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
             }];
         }
 
-        // Generar slots para los turnos del día
+        // 2. Generar slots base (Opening Hour Steps)
+        const baseSlots: Date[] = [];
         dailyShifts.forEach(shift => {
             const [sH, sM] = shift.start.split(':').map(Number);
             const [eH, eM] = shift.end.split(':').map(Number);
-            if (!isNaN(sH) && !isNaN(eH)) {
-                addSlotsInRange(sH, sM || 0, eH, eM || 0);
+
+            if (isNaN(sH) || isNaN(eH)) return;
+
+            const current = new Date(selectedDate);
+            current.setHours(sH, sM || 0, 0, 0);
+
+            const endDateTime = new Date(selectedDate);
+            endDateTime.setHours(eH, eM || 0, 0, 0);
+
+            while (current.getTime() < endDateTime.getTime()) {
+                const slotEnd = new Date(current);
+                slotEnd.setMinutes(current.getMinutes() + duration);
+
+                if (slotEnd.getTime() <= endDateTime.getTime()) {
+                    baseSlots.push(new Date(current));
+                }
+                current.setMinutes(current.getMinutes() + duration);
             }
         });
 
-        // Ordenar slots por si el JSON viniera desordenado
-        timeSlots.sort((a, b) => a.getTime() - b.getTime());
-    }
+        // 3. Añadir slots basados en fin de reservas existentes (Huecos dinámicos)
+        const reservationEndTimes = reservations
+            .filter(r => r.status !== 'cancelled')
+            .map(r => {
+                const d = new Date(r.end_time);
+                d.setSeconds(0, 0);
+                return d;
+            });
 
-    // Comprobar disponibilidad de un slot
+        // 4. Combinar, Deduplicar y Ordenar
+        const allPotentialSlots = [...baseSlots, ...reservationEndTimes];
+        const uniqueTimestamps = Array.from(new Set(allPotentialSlots.map(d => d.getTime())));
+        uniqueTimestamps.sort((a, b) => a - b);
+
+        // 5. Filtrar solo los que caen dentro de un turno válido
+        const validSlots: Date[] = [];
+        uniqueTimestamps.forEach(ts => {
+            const dateObj = new Date(ts);
+
+            const isInShift = dailyShifts.some(shift => {
+                const [sH, sM] = shift.start.split(':').map(Number);
+                const [eH, eM] = shift.end.split(':').map(Number);
+
+                const shiftStart = new Date(selectedDate);
+                shiftStart.setHours(sH, sM || 0, 0, 0);
+
+                const shiftEnd = new Date(selectedDate);
+                shiftEnd.setHours(eH, eM || 0, 0, 0);
+
+                // El slot debe terminar dentro del turno
+                const slotEnd = new Date(dateObj);
+                slotEnd.setMinutes(dateObj.getMinutes() + duration);
+
+                return dateObj >= shiftStart && slotEnd <= shiftEnd;
+            });
+
+            if (isInShift) {
+                validSlots.push(dateObj);
+            }
+        });
+
+        return validSlots;
+    }, [club, selectedDate, reservations]);
+
+    const timeSlots = generateTimeSlots();
+
+    // Comprobar disponibilidad de un slot (Range overlap check)
     const checkAvailability = (time: Date) => {
         if (!club) return [];
 
-        // Calcular fin de la reserva propuesta
         const proposedStart = time.getTime();
         const proposedEnd = new Date(time).getTime() + (club.booking_duration * 60000);
 
         const availableCourts = courts.filter(court => {
-            // Buscar si hay reserva que solape
             const hasCollision = reservations.some(res => {
                 if (res.court_id !== court.id) return false;
 
                 const existingStart = new Date(res.start_time).getTime();
                 const existingEnd = new Date(res.end_time).getTime();
 
-                // Logic de colisión de rangos: (StartA < EndB) y (EndA > StartB)
+                // Colisión si se solapan los intervalos
                 return proposedStart < existingEnd && proposedEnd > existingStart;
             });
             return !hasCollision;
@@ -295,14 +327,11 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
     if (loading) return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-green-500">Cargando...</div>;
     if (!club) return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">Club no encontrado</div>;
 
-    // Helper para saber si es hoy o pasado
     const isDateTodayOrPast = () => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-
         const current = new Date(selectedDate);
         current.setHours(0, 0, 0, 0);
-
         return current <= today;
     };
 
@@ -366,12 +395,11 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
                             const isFull = freeCourts.length === 0;
                             const timeStr = slot.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 
-                            // Comprobar si ya pasó la hora (usamos selectedDate como referencia del día actual)
                             const today = new Date();
                             const isToday = selectedDate.toDateString() === today.toDateString();
                             const isPast = isToday && slot.getTime() < today.getTime();
 
-                            if (isPast) return null; // No mostrar horarios pasados
+                            if (isPast) return null;
 
                             return (
                                 <div key={i} className={`bg-gray-800 rounded-xl p-4 border border-gray-700 flex justify-between items-center ${isFull ? 'opacity-50' : ''}`}>
@@ -416,7 +444,6 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
                 </div>
             </div>
 
-            {/* Modal Selección de Pista */}
             {selectingCourt && (
                 <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setSelectingCourt(null)}>
                     <div className="h-full overflow-y-auto py-4 px-4">
@@ -462,7 +489,6 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
                 </div>
             )}
 
-            {/* Modal Confirmación */}
             {selectedSlot && (
                 <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
                     <div className="h-full overflow-y-auto py-4 px-4">
