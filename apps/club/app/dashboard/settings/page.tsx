@@ -40,7 +40,10 @@ export default function SettingsPage() {
         async function loadSettings() {
             setLoading(true);
             const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
+            if (!user) {
+                setLoading(false);
+                return;
+            }
 
             let { data: members, error } = await supabase
                 .from('club_members')

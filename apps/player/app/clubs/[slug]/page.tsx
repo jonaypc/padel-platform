@@ -18,12 +18,14 @@ interface Club {
     opening_hour: number;
     closing_hour: number;
     shifts?: { start: string; end: string }[] | Record<string, { start: string; end: string }[]> | null;
+    default_price: number;
 }
 
 interface Court {
     id: string;
     name: string;
     type: string;
+    price?: number;
 }
 
 interface Reservation {
@@ -61,7 +63,7 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
                 // 1. Club info
                 const { data: clubData, error: clubError } = await supabase
                     .from('clubs')
-                    .select('id, name, slug, location, logo_url, booking_duration, opening_hour, closing_hour, shifts')
+                    .select('id, name, slug, location, logo_url, booking_duration, default_price, opening_hour, closing_hour, shifts')
                     .eq('slug', slug)
                     .single();
 
@@ -83,7 +85,7 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
                 // 2. Pistas
                 const { data: courtsData } = await supabase
                     .from('courts')
-                    .select('id, name, type')
+                    .select('id, name, type, price')
                     .eq('club_id', clubData.id)
                     .eq('is_active', true)
                     .order('name');
@@ -278,6 +280,17 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
     if (loading) return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-green-500">Cargando...</div>;
     if (!club) return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">Club no encontrado</div>;
 
+    // Helper para saber si es hoy o pasado
+    const isDateTodayOrPast = () => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const current = new Date(selectedDate);
+        current.setHours(0, 0, 0, 0);
+
+        return current <= today;
+    };
+
     return (
         <div className="min-h-screen bg-gray-900 pb-24">
             <AppHeader />
@@ -308,8 +321,12 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
             <div className="max-w-md mx-auto px-4 mt-6">
                 {/* Selector Fecha */}
                 <div className="flex items-center justify-between bg-gray-800 p-4 rounded-xl border border-gray-700 mb-6">
-                    <button onClick={() => changeDate(-1)} className="p-2 hover:bg-gray-700 rounded-lg">
-                        <ChevronLeft className="text-gray-400" />
+                    <button
+                        onClick={() => changeDate(-1)}
+                        disabled={isDateTodayOrPast()}
+                        className={`p-2 rounded-lg ${isDateTodayOrPast() ? 'text-gray-600 cursor-not-allowed' : 'hover:bg-gray-700 text-gray-400'}`}
+                    >
+                        <ChevronLeft size={20} />
                     </button>
                     <div className="text-center">
                         <h2 className="text-white font-semibold capitalize">
@@ -437,57 +454,59 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
                         <div className="min-h-full flex items-end sm:items-center justify-center">
                             <div className="bg-gray-800 w-full max-w-sm rounded-2xl border border-gray-700 shadow-2xl animate-in slide-in-from-bottom duration-300 my-auto">
                                 <div className="p-6">
-                            <h3 className="text-xl font-bold text-white mb-2">Confirmar Reserva</h3>
-                            <p className="text-gray-400 text-sm mb-6">
-                                Estás a punto de reservar una pista.
-                            </p>
+                                    <h3 className="text-xl font-bold text-white mb-2">Confirmar Reserva</h3>
+                                    <p className="text-gray-400 text-sm mb-6">
+                                        Estás a punto de reservar una pista.
+                                    </p>
 
-                            <div className="bg-gray-900/50 rounded-xl p-4 mb-6 space-y-3">
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-gray-500">Club</span>
-                                    <span className="text-white font-medium">{club.name}</span>
-                                </div>
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-gray-500">Fecha</span>
-                                    <span className="text-white font-medium capitalize">
-                                        {selectedSlot.time.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
-                                    </span>
-                                </div>
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-gray-500">Hora</span>
-                                    <span className="text-white font-medium">
-                                        {selectedSlot.time.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
-                                    </span>
-                                </div>
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-gray-500">Pista</span>
-                                    <span className="text-white font-medium">{selectedSlot.court.name}</span>
-                                </div>
-                                <div className="flex justify-between text-sm border-t border-gray-700 pt-3 mt-2">
-                                    <span className="text-gray-400">Total</span>
-                                    <span className="text-green-400 font-bold">Gratis</span> {/* Precio pendiente */}
-                                </div>
-                            </div>
+                                    <div className="bg-gray-900/50 rounded-xl p-4 mb-6 space-y-3">
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-gray-500">Club</span>
+                                            <span className="text-white font-medium">{club.name}</span>
+                                        </div>
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-gray-500">Fecha</span>
+                                            <span className="text-white font-medium capitalize">
+                                                {selectedSlot.time.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
+                                            </span>
+                                        </div>
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-gray-500">Hora</span>
+                                            <span className="text-white font-medium">
+                                                {selectedSlot.time.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                                            </span>
+                                        </div>
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-gray-500">Pista</span>
+                                            <span className="text-white font-medium">{selectedSlot.court.name}</span>
+                                        </div>
+                                        <div className="flex justify-between text-sm border-t border-gray-700 pt-3 mt-2">
+                                            <span className="text-gray-400">Total</span>
+                                            <span className="text-green-400 font-bold">
+                                                {(selectedSlot.court.price || club.default_price) ? `${selectedSlot.court.price || club.default_price}€` : 'Gratis'}
+                                            </span>
+                                        </div>
+                                    </div>
 
-                            <div className="grid grid-cols-2 gap-3">
-                                <button
-                                    onClick={() => setSelectedSlot(null)}
-                                    className="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3 rounded-xl transition"
-                                >
-                                    Cancelar
-                                </button>
-                                <button
-                                    onClick={handleBooking}
-                                    disabled={booking}
-                                    className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition flex justify-center items-center gap-2 disabled:opacity-50"
-                                >
-                                    {booking ? (
-                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                    ) : (
-                                        <span>Confirmar</span>
-                                    )}
-                                </button>
-                            </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <button
+                                            onClick={() => setSelectedSlot(null)}
+                                            className="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3 rounded-xl transition"
+                                        >
+                                            Cancelar
+                                        </button>
+                                        <button
+                                            onClick={handleBooking}
+                                            disabled={booking}
+                                            className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition flex justify-center items-center gap-2 disabled:opacity-50"
+                                        >
+                                            {booking ? (
+                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                            ) : (
+                                                <span>Confirmar</span>
+                                            )}
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>

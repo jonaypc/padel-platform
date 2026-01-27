@@ -1,6 +1,6 @@
 export type UserRole = 'player' | 'club_admin' | 'club_staff';
 
-export type MatchStatus = 'pending' | 'confirmed' | 'cancelled';
+
 
 export interface BaseEntity {
     id: string;
@@ -11,6 +11,8 @@ export interface Profile extends BaseEntity {
     role: UserRole;
     username: string | null;
     display_name: string | null;
+    full_name?: string;
+    email?: string;
     avatar_url: string | null;
     is_public: boolean;
     updated_at: string;
@@ -89,4 +91,49 @@ export function getRankingTier(points: number): { id: RankingTier; info: typeof 
     if (points >= 1200) return { id: 'intermediate', info: RANKING_TIERS.intermediate };
     if (points >= 1100) return { id: 'amateur', info: RANKING_TIERS.amateur };
     return { id: 'beginner', info: RANKING_TIERS.beginner };
+}
+
+// Matches
+export type MatchStatus = 'draft' | 'pending_confirmation' | 'confirmed' | 'disputed';
+export type MatchRole = 'player' | 'partner' | 'opponent1' | 'opponent2';
+
+export interface Match extends BaseEntity {
+    user_id: string; // Creador
+    reservation_id: string | null;
+    club_id: string | null;
+    played_at: string;
+    match_type: 'singles' | 'doubles';
+    location: string | null;
+
+    // Denormalized names
+    partner_name: string | null;
+    opponent1_name: string | null;
+    opponent2_name: string | null;
+
+    // Scores
+    set1_us: number | null;
+    set1_them: number | null;
+    set2_us: number | null;
+    set2_them: number | null;
+    set3_us: number | null;
+    set3_them: number | null;
+
+    overall_feeling: number | null;
+    notes: string | null;
+    status: MatchStatus;
+
+    // Relations
+    participants?: MatchParticipant[];
+    reservation?: Reservation;
+}
+
+export interface MatchParticipant extends BaseEntity {
+    match_id: string;
+    user_id: string;
+    role: MatchRole;
+    confirmed: boolean;
+    elo_change: number | null;
+
+    // Relations
+    user?: Profile;
 }

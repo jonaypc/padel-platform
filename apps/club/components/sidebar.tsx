@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Grid3X3, Calendar, Settings, LogOut } from "lucide-react";
+import { LayoutDashboard, Grid3X3, Calendar, Settings, LogOut, Trophy, Users } from "lucide-react";
 import { createBrowserClient } from "@padel/supabase";
 import { useMemo, useCallback } from "react";
 
@@ -10,13 +10,15 @@ const NAV_ITEMS = [
     { name: "Resumen", href: "/dashboard", icon: LayoutDashboard },
     { name: "Pistas", href: "/dashboard/pistas", icon: Grid3X3 },
     { name: "Reservas", href: "/dashboard/reservas", icon: Calendar },
+    { name: "Partidos", href: "/dashboard/partidos", icon: Trophy },
+    { name: "Equipo", href: "/dashboard/miembros", icon: Users },
     { name: "Configuración", href: "/dashboard/settings", icon: Settings },
 ];
 
 export function Sidebar() {
     const pathname = usePathname();
     const router = useRouter();
-    
+
     // Memoizar el cliente de Supabase para evitar recrearlo en cada render
     const supabase = useMemo(() => createBrowserClient(), []);
 
@@ -57,7 +59,7 @@ export function Sidebar() {
             </nav>
 
             <div className="p-6 border-t border-gray-800">
-                <button 
+                <button
                     onClick={handleLogout}
                     className="flex items-center space-x-3 px-4 py-3 text-gray-400 hover:text-red-400 w-full transition-all duration-200 hover:bg-red-500/5 rounded-xl group font-medium text-xs"
                 >

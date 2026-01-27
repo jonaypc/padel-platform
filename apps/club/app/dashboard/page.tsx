@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { createBrowserClient } from "@padel/supabase";
+
 
 export default function DashboardPage() {
     const [stats, setStats] = useState({
@@ -27,14 +29,14 @@ export default function DashboardPage() {
 
         async function loadStats() {
             const supabase = createBrowserClient();
-            
+
             // Verificar sesión
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) {
                 setLoading(false);
                 return;
             }
-            
+
             const user = session.user;
             setLoading(true);
 
@@ -179,7 +181,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <a
+                    <Link
                         href="/dashboard/pistas"
                         className="block bg-gray-800 border border-gray-700 rounded-xl p-4 hover:bg-gray-750 transition no-underline"
                     >
@@ -193,9 +195,9 @@ export default function DashboardPage() {
                             </div>
                             <span className="text-green-500">→</span>
                         </div>
-                    </a>
+                    </Link>
 
-                    <a
+                    <Link
                         href="/dashboard/reservas"
                         className="block bg-gray-800 border border-gray-700 rounded-xl p-4 hover:bg-gray-750 transition no-underline"
                     >
@@ -209,9 +211,9 @@ export default function DashboardPage() {
                             </div>
                             <span className="text-green-500">→</span>
                         </div>
-                    </a>
+                    </Link>
 
-                    <a
+                    <Link
                         href="/dashboard/settings"
                         className="block bg-gray-800 border border-gray-700 rounded-xl p-4 hover:bg-gray-750 transition no-underline"
                     >
@@ -225,7 +227,7 @@ export default function DashboardPage() {
                             </div>
                             <span className="text-green-500">→</span>
                         </div>
-                    </a>
+                    </Link>
                 </div>
             </div>
         </div>

@@ -20,7 +20,10 @@ export default function PistasPage() {
     const supabase = createBrowserClient();
 
     const fetchClubAndCourts = useCallback(async () => {
-        if (!user) return;
+        if (!user) {
+            setLoading(false);
+            return;
+        }
 
         setLoading(true);
         try {

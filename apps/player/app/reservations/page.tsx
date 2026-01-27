@@ -28,26 +28,53 @@ export default function MyReservationsPage() {
     useEffect(() => {
         async function loadReservations() {
             const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
+            if (!user) {
+                setLoading(false); // Ensure loading is set to false even if no user
+                return;
+            }
 
-            const { data } = await supabase
-                .from('reservations')
-                .select(`
+            const selectFields = `
             id, 
             start_time, 
             end_time, 
             status,
             clubs (name, location),
             courts (name)
-        `)
-                .eq('user_id', user.id)
-                .eq('type', 'booking') // Solo reservas de jugador
-                .order('start_time', { ascending: true }); // Próximas primero
+            `;
 
-            if (data) {
-                // @ts-expect-error - Supabase join types
-                setReservations(data);
-            }
+            // 1. Reservas donde soy el dueño
+            const ownedPromise = supabase
+                .from('reservations')
+                .select(selectFields)
+                .eq('user_id', user.id)
+                .in('type', ['booking', 'match'])
+                .order('start_time', { ascending: true });
+
+            // 2. Reservas donde soy jugador invitado
+            const participatingPromise = supabase
+                .from('reservations')
+                .select(selectFields)
+                .contains('players', [{ id: user.id }])
+                .in('type', ['booking', 'match'])
+                .order('start_time', { ascending: true });
+
+            const [ownedRes, participatingRes] = await Promise.all([ownedPromise, participatingPromise]);
+
+            const owned = ownedRes.data || [];
+            const participating = participatingRes.data || [];
+
+            // Combinar y eliminar duplicados por ID
+            const allReservationsMap = new Map();
+            [...owned, ...participating].forEach((r: any) => {
+                allReservationsMap.set(r.id, r);
+            });
+
+            const allReservations = Array.from(allReservationsMap.values());
+
+            // Ordenar por fecha
+            allReservations.sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+
+            setReservations(allReservations);
             setLoading(false);
         }
 
@@ -65,6 +92,8 @@ export default function MyReservationsPage() {
 
             <div className="max-w-md mx-auto px-4 py-6">
                 <h1 className="text-2xl font-bold text-white mb-6">Mis Reservas</h1>
+
+
 
                 {loading ? (
                     <div className="flex justify-center p-8">
@@ -153,6 +182,7 @@ function ReservationCard({ reservation, isPast }: { reservation: Reservation, is
                         <span>{reservation.clubs.location}</span>
                     </div>
                 )}
+
             </div>
         </div>
     );
