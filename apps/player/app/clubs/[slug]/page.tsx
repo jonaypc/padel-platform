@@ -203,9 +203,10 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
     const generateTimeSlots = useCallback(() => {
         if (!club) return [];
 
-        const duration = Math.max(club.booking_duration || 60, 30);
+        // SYNC: Default to 90 minutes to match Club App
+        const duration = Math.max(club.booking_duration || 90, 30);
 
-        // 1. Obtener turnos diarios (Shifts) - LÓGICA CLUB APP EXACTA
+        // 1. Obtener turnos diarios (Shifts)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const shiftsData = club.shifts as any;
         let dailyShifts: Array<{ start: string; end: string }> = [];
@@ -216,7 +217,7 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
             dailyShifts = shiftsData[dayKey];
         }
 
-        // Fallback: Si no hay turnos para HOY, usar horario apertura/cierre
+        // Fallback
         if (dailyShifts.length === 0) {
             const startHour = club.opening_hour ?? 8;
             const endHour = club.closing_hour ?? 22;
@@ -251,17 +252,20 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
             }
         });
 
-        // 3. Añadir slots basados en fin de reservas existentes (Huecos dinámicos)
-        const reservationEndTimes = reservations
-            .filter(r => r.status !== 'cancelled')
-            .map(r => {
-                const d = new Date(r.end_time);
-                d.setSeconds(0, 0);
-                return d;
+        // 3. Añadir slots basados en RESERVAS EXISTENTES (Inicio y Fin)
+        // SYNC: Club App usa start_time y end_time como anchors
+        const reservationSlots = reservations
+            .filter(r => r.status && r.status !== 'cancelled')
+            .flatMap(r => {
+                const start = new Date(r.start_time);
+                start.setSeconds(0, 0);
+                const end = new Date(r.end_time);
+                end.setSeconds(0, 0);
+                return [start, end];
             });
 
         // 4. Combinar, Deduplicar y Ordenar
-        const allPotentialSlots = [...baseSlots, ...reservationEndTimes];
+        const allPotentialSlots = [...baseSlots, ...reservationSlots];
         const uniqueTimestamps = Array.from(new Set(allPotentialSlots.map(d => d.getTime())));
         uniqueTimestamps.sort((a, b) => a - b);
 
