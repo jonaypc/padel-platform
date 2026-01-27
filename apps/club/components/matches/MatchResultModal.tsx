@@ -87,12 +87,12 @@ export default function MatchResultModal({ match, isOpen, onClose, onUpdate }: M
 
                     {/* Enfrentamiento */}
                     <div className="flex justify-between items-center text-sm font-medium text-gray-300 bg-gray-900/50 p-3 rounded-xl border border-gray-700">
-                        <div className="w-5/12 text-center break-words pr-2">
+                        <div className="w-5/12 text-center wrap-break-word pr-2">
                             <div className="text-green-400 font-bold mb-1">Equipo A (Local)</div>
                             {match.partner_name || "Jugador 1"}
                         </div>
                         <div className="font-bold text-gray-500">VS</div>
-                        <div className="w-5/12 text-center break-words pl-2">
+                        <div className="w-5/12 text-center wrap-break-word pl-2">
                             <div className="text-red-400 font-bold mb-1">Equipo B (Visitante)</div>
                             {match.opponent1_name || "Rival 1"}
                             {match.opponent2_name && ` / ${match.opponent2_name}`}

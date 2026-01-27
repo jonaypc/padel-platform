@@ -218,7 +218,7 @@ export function ReservationDetailModal({
                                                 <span className="text-[10px] bg-blue-900/40 text-blue-400 px-1.5 py-0.5 rounded border border-blue-900">App</span>
                                             </p>
                                         ) : (
-                                            <p className="text-white font-medium italic text-gray-300">
+                                            <p className="text-gray-300 font-medium italic">
                                                 {reservation.players?.[0]?.name || "Cliente Ocasional"}
                                             </p>
                                         )}
@@ -294,7 +294,7 @@ export function ReservationDetailModal({
                         {reservation.notes && (
                             <div className="bg-yellow-900/10 border border-yellow-900/30 p-3 rounded-lg">
                                 <p className="text-xs text-yellow-500 uppercase font-bold mb-1">Notas</p>
-                                <p className="text-yellow-200 text-sm italic">"{reservation.notes}"</p>
+                                <p className="text-yellow-200 text-sm italic">&quot;{reservation.notes}&quot;</p>
                             </div>
                         )}
 

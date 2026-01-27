@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createBrowserClient } from "@padel/supabase";
-import type { Court, Reservation, ReservationStatus, ReservationType } from "@padel/core";
+import type { Court, Reservation, ReservationType } from "@padel/core";
 
 export interface ReservationPlayer {
     name: string;
@@ -101,6 +101,7 @@ export function useReservations() {
                     return;
                 }
 
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const member = members[0] as any;
                 const club = Array.isArray(member.clubs) ? member.clubs[0] : member.clubs;
 
@@ -211,6 +212,7 @@ export function useReservations() {
 
             await loadReservations();
             return { error: null };
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
             console.error("Unexpected error creating reservation:", err);
             return { error: err.message || "Error desconocido" };
@@ -236,6 +238,7 @@ export function useReservations() {
         setProcessing(true);
 
         try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const updateData: any = {};
 
             if (data.courtId) updateData.court_id = data.courtId;
@@ -272,6 +275,7 @@ export function useReservations() {
 
             await loadReservations();
             return { error: null };
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
             console.error("Unexpected error updating reservation:", err);
             return { error: err.message };
@@ -294,6 +298,7 @@ export function useReservations() {
 
             await loadReservations();
             return { error: null };
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
             return { error: err.message };
         } finally {
