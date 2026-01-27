@@ -46,21 +46,26 @@ export function ReservationSlot({
         return (
             <button
                 onClick={() => onClickReservation(reservation)}
-                className={`w-full h-full rounded flex flex-col items-center justify-center text-[10px] leading-tight font-bold cursor-pointer transition p-1 text-center z-10 relative
+                className={`w-full h-full rounded-lg flex flex-col items-center justify-center text-[10px] leading-tight font-bold cursor-pointer transition p-1.5 text-center z-10 relative group ring-1 ring-white/5
                     ${isMaintenance
-                        ? 'bg-red-900/90 text-red-400 border border-red-800 hover:bg-red-900'
-                        : 'bg-green-900/90 text-green-400 border border-green-800 hover:bg-green-900'
+                        ? 'bg-gradient-to-br from-red-900/90 to-red-950 text-red-400 border border-red-700/50 hover:border-red-500/50 hover:from-red-800'
+                        : 'bg-gradient-to-br from-green-900/90 to-green-950 text-green-400 border border-green-700/50 hover:border-green-500/50 hover:from-green-800'
                     }
                     ${getWarningClass(reservation)}
                 `}
-                style={{ height: 'calc(100% + 2px)', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.5)' }}
+                style={{ height: 'calc(100% + 2px)', boxShadow: '0 8px 16px -4px rgba(0, 0, 0, 0.6)' }}
             >
-                <span className="uppercase tracking-tighter opacity-70 block text-[8px] mb-0.5">
-                    {isMaintenance ? 'Mantenimiento' : 'Pista'}
+                <div className={`absolute top-0 left-0 w-1 h-full rounded-l-lg ${isMaintenance ? 'bg-red-500' : 'bg-green-500'} opacity-50`} />
+
+                <span className="uppercase tracking-widest opacity-50 block text-[7px] mb-1 font-black">
+                    {isMaintenance ? 'Bloqueo' : 'Reserva'}
                 </span>
-                <span className="truncate w-full inline-block">
+                <span className="truncate w-full inline-block px-1 text-[11px] font-black uppercase tracking-tight">
                     {getReservationLabel(reservation)}
                 </span>
+
+                {/* Glow effect on hover */}
+                <div className="absolute inset-0 bg-white/0 group-hover:bg-white/5 transition-colors rounded-lg" />
             </button>
         );
     }

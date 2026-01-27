@@ -156,78 +156,79 @@ export function CreateReservationModal({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] h-[90vh] md:h-auto overflow-y-auto flex flex-col">
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/80 backdrop-blur-md p-0 md:p-4 animate-in fade-in duration-300">
+            <div className="bg-gray-900 border-t md:border border-gray-700/50 rounded-t-3xl md:rounded-2xl shadow-[0_0_50px_-12px_rgba(0,0,0,0.8)] w-full max-w-2xl h-[92vh] md:h-auto md:max-h-[90vh] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-500 md:duration-300 ring-1 ring-white/5">
 
                 {/* HEADER */}
-                <div className="flex justify-between items-center p-3 md:p-4 border-b border-gray-800 sticky top-0 bg-gray-900 z-10">
+                <div className="flex justify-between items-center p-5 border-b border-gray-800 bg-gray-900/50 shrink-0">
                     <div>
-                        <h2 className="text-lg md:text-xl font-bold text-white flex items-center gap-2">
+                        <h2 className="text-xl md:text-2xl font-black text-white tracking-tight">
                             Nueva {activeTab === 'reservation' ? 'Reserva' : 'Bloqueo'}
                         </h2>
-                        <div className="text-sm text-gray-400 flex items-center gap-2 mt-1">
-                            <span className="bg-gray-800 px-2 py-0.5 rounded text-white border border-gray-700">
+                        <div className="text-[10px] md:text-xs text-gray-500 flex items-center gap-3 mt-1 font-bold uppercase tracking-widest leading-none">
+                            <span className="flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
                                 {slot.court.name}
                             </span>
-                            <span className="flex items-center gap-1">
-                                <Calendar size={14} />
-                                {slot.time.toLocaleDateString()}
+                            <span className="w-1 h-1 rounded-full bg-gray-700" />
+                            <span className="flex items-center gap-1.5 text-white/80">
+                                {slot.time.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}
                             </span>
-                            <span className="flex items-center gap-1 text-green-400">
-                                <Clock size={14} />
-                                {formatTime(slot.time)} - {formatTime(getEndTime(slot.time))}
+                            <span className="w-1 h-1 rounded-full bg-gray-700" />
+                            <span className="flex items-center gap-1.5 text-green-400">
+                                {formatTime(slot.time)}
                             </span>
                         </div>
                     </div>
                     <button
                         onClick={onClose}
-                        className="text-gray-400 hover:text-white p-2 hover:bg-gray-800 rounded-lg transition"
+                        className="text-gray-400 hover:text-white p-2 hover:bg-white/5 rounded-xl transition-all"
                     >
-                        <X size={20} />
+                        <X size={24} className="md:w-5 md:h-5" />
                     </button>
                 </div>
 
-                {/* TABS TIPO */}
-                <div className="flex p-2 gap-2 bg-gray-800/50">
+                {/* BUTTONS TIPO (TABS) */}
+                <div className="flex p-3 gap-3 bg-gray-950/20 shrink-0 border-b border-gray-800/50">
                     <button
                         onClick={() => setActiveTab('reservation')}
-                        className={`flex-1 py-2 text-sm font-bold rounded-lg transition ${activeTab === 'reservation'
-                            ? 'bg-green-600 text-white shadow-lg shadow-green-900/20'
-                            : 'text-gray-400 hover:bg-gray-700 hover:text-gray-200'
+                        className={`flex-1 py-3 text-[10px] font-black rounded-2xl transition-all tracking-widest uppercase ${activeTab === 'reservation'
+                            ? 'bg-gradient-to-r from-green-600 to-green-700 text-white shadow-[0_8px_20px_-6px_rgba(22,163,74,0.5)] ring-1 ring-white/20'
+                            : 'text-gray-500 hover:bg-gray-800 hover:text-gray-300 border border-transparent'
                             }`}
                     >
-                        RESERVA
+                        RESERVA ESTÁNDAR
                     </button>
                     <button
                         onClick={() => setActiveTab('maintenance')}
-                        className={`flex-1 py-2 text-sm font-bold rounded-lg transition ${activeTab === 'maintenance'
-                            ? 'bg-red-600 text-white shadow-lg shadow-red-900/20'
-                            : 'text-gray-400 hover:bg-gray-700 hover:text-gray-200'
+                        className={`flex-1 py-3 text-[10px] font-black rounded-2xl transition-all tracking-widest uppercase ${activeTab === 'maintenance'
+                            ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-[0_8px_20px_-6px_rgba(220,38,38,0.5)] ring-1 ring-white/20'
+                            : 'text-gray-500 hover:bg-gray-800 hover:text-gray-300 border border-transparent'
                             }`}
                     >
-                        BLOQUEO / MANTENIMIENTO
+                        BLOQUEO MANUAL
                     </button>
                 </div>
 
-                {/* BODY */}
-                <div className="p-4 space-y-6 flex-1">
+                {/* BODY (Scrollable) */}
+                <div className="flex-1 overflow-y-auto p-5 md:p-8 space-y-10 overscrell-contain custom-scrollbar bg-gradient-to-b from-gray-900 to-gray-950">
 
                     {activeTab === 'reservation' && (
                         <>
                             {/* SELECCIÓN DE CLIENTE */}
-                            <div className="space-y-3">
+                            <div className="space-y-4">
                                 <div className="flex justify-between items-center">
-                                    <label className="text-sm font-medium text-gray-300">Cliente Principal</label>
-                                    <div className="flex bg-gray-800 rounded-lg p-1 border border-gray-700">
+                                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Cliente Principal</label>
+                                    <div className="flex bg-gray-950 rounded-xl p-1 border border-gray-800 shadow-inner">
                                         <button
                                             onClick={() => setCustomerType('occasional')}
-                                            className={`px-3 py-1 text-xs rounded-md transition ${customerType === 'occasional' ? 'bg-gray-700 text-white' : 'text-gray-400'}`}
+                                            className={`px-4 py-1.5 text-[9px] font-black uppercase rounded-lg transition-all ${customerType === 'occasional' ? 'bg-gray-800 text-white shadow-sm' : 'text-gray-500'}`}
                                         >
                                             Ocasional
                                         </button>
                                         <button
                                             onClick={() => setCustomerType('registered')}
-                                            className={`px-3 py-1 text-xs rounded-md transition ${customerType === 'registered' ? 'bg-blue-900/40 text-blue-400 ring-1 ring-blue-500/50' : 'text-gray-400'}`}
+                                            className={`px-4 py-1.5 text-[9px] font-black uppercase rounded-lg transition-all ${customerType === 'registered' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500'}`}
                                         >
                                             Registrado
                                         </button>
@@ -235,25 +236,24 @@ export function CreateReservationModal({
                                 </div>
 
                                 {customerType === 'occasional' ? (
-                                    <div className="relative">
-                                        <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
+                                    <div className="relative group">
+                                        <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 group-focus-within:text-green-500 transition-colors" size={20} />
                                         <input
                                             type="text"
                                             value={customerName}
                                             onChange={(e) => {
                                                 setCustomerName(e.target.value);
-                                                // Actualizar primer jugador también
                                                 const newPlayers = [...players];
                                                 if (newPlayers[0]) newPlayers[0] = { ...newPlayers[0], name: e.target.value };
                                                 setPlayers(newPlayers);
                                             }}
-                                            placeholder="Nombre del cliente..."
-                                            className="w-full bg-gray-800 border border-gray-700 rounded-lg py-2.5 pl-10 pr-4 text-white focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none transition"
+                                            placeholder="Introduce nombre del cliente..."
+                                            className="w-full bg-gray-950 border border-gray-800 rounded-2xl py-4 pl-12 pr-4 text-white font-medium focus:border-green-500/50 focus:ring-4 focus:ring-green-500/5 outline-none transition-all shadow-inner placeholder:text-gray-700"
                                         />
                                     </div>
                                 ) : (
-                                    <div className="relative">
-                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
+                                    <div className="relative group">
+                                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 group-focus-within:text-blue-500 transition-colors" size={20} />
                                         <input
                                             type="text"
                                             value={selectedUser ? selectedUser.name : userSearchQuery}
@@ -261,22 +261,26 @@ export function CreateReservationModal({
                                                 if (selectedUser) setSelectedUser(null);
                                                 handleSearchUser(e.target.value);
                                             }}
-                                            placeholder="Buscar usuario..."
-                                            className="w-full bg-gray-800 border border-gray-700 rounded-lg py-2.5 pl-10 pr-4 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition"
+                                            placeholder="Buscar por nombre o email..."
+                                            className="w-full bg-gray-950 border border-gray-800 rounded-2xl py-4 pl-12 pr-4 text-white font-medium focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all shadow-inner placeholder:text-gray-700"
                                         />
                                         {/* Resultados de búsqueda */}
                                         {searchResults.length > 0 && !selectedUser && (
-                                            <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-20 max-h-48 overflow-y-auto">
+                                            <div className="absolute top-full left-0 right-0 mt-3 bg-gray-900 border border-gray-700 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-30 max-h-64 overflow-y-auto overflow-x-hidden p-2 ring-1 ring-white/5 animate-in fade-in slide-in-from-top-2 duration-200">
                                                 {searchResults.map(user => (
                                                     <button
                                                         key={user.id}
                                                         onClick={() => selectUser(user)}
-                                                        className="w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center gap-2 transition"
+                                                        type="button"
+                                                        className="w-full text-left px-4 py-3 hover:bg-white/5 rounded-xl flex items-center gap-4 transition-all group/item"
                                                     >
-                                                        <div className="w-6 h-6 rounded-full bg-gray-600 flex items-center justify-center text-xs">
+                                                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center text-sm font-black text-white shrink-0 shadow-lg group-hover/item:scale-105 transition-transform">
                                                             {user.display_name?.charAt(0) || 'U'}
                                                         </div>
-                                                        <span className="text-sm text-gray-200">{user.display_name}</span>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-sm font-bold text-gray-200 truncate group-hover/item:text-white">{user.display_name}</p>
+                                                            <p className="text-[10px] text-gray-500 truncate uppercase tracking-widest font-bold">{user.email}</p>
+                                                        </div>
                                                     </button>
                                                 ))}
                                             </div>
@@ -288,9 +292,9 @@ export function CreateReservationModal({
                                                     setCustomerName("");
                                                     setUserSearchQuery("");
                                                 }}
-                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                                                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white p-1.5 hover:bg-gray-800 rounded-xl transition-all"
                                             >
-                                                <X size={16} />
+                                                <X size={18} />
                                             </button>
                                         )}
                                     </div>
@@ -298,99 +302,109 @@ export function CreateReservationModal({
                             </div>
 
                             {/* PRECIO */}
-                            <div>
-                                <label className="text-sm font-medium text-gray-300 mb-1 block">Precio Pista</label>
-                                <div className="flex gap-2">
-                                    <div className="relative flex-1">
-                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">€</span>
+                            <div className="space-y-4">
+                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Tarifa Aplicada</label>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div className="relative group">
+                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 font-black group-focus-within:text-green-500 transition-colors">€</span>
                                         <input
                                             type="number"
                                             value={price}
                                             onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
-                                            className="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 pl-8 pr-4 text-white font-mono focus:border-green-500 outline-none"
+                                            className="w-full bg-gray-950 border border-gray-800 rounded-2xl py-4 pl-10 pr-4 text-white font-mono font-black text-lg focus:border-green-500/50 focus:ring-4 focus:ring-green-500/5 outline-none transition-all shadow-inner"
                                         />
                                     </div>
-                                    {/* Templates de precio */}
-                                    {clubConfig.priceTemplates?.map((tpl, i) => (
-                                        <button
-                                            key={i}
-                                            onClick={() => setPrice(tpl.price)}
-                                            className="px-3 py-2 bg-gray-800 border border-gray-600 hover:bg-gray-700 rounded-lg text-xs text-gray-300 transition"
-                                        >
-                                            {tpl.label}
-                                        </button>
-                                    ))}
+                                    <div className="flex gap-2 overflow-x-auto pb-1 custom-scrollbar">
+                                        {clubConfig.priceTemplates?.map((tpl, i) => (
+                                            <button
+                                                key={i}
+                                                type="button"
+                                                onClick={() => setPrice(tpl.price)}
+                                                className={`px-4 py-4 rounded-2xl text-[11px] font-black transition-all shrink-0 flex flex-col items-center justify-center min-w-[80px] border
+                                                    ${price === tpl.price
+                                                        ? 'bg-green-600/10 border-green-500/50 text-green-400 shadow-[0_0_20px_rgba(34,197,94,0.1)]'
+                                                        : 'bg-gray-950 border-gray-800 text-gray-500 hover:border-gray-600 hover:text-gray-300'
+                                                    }`}
+                                            >
+                                                <span className="text-lg leading-none mb-1">{tpl.price}€</span>
+                                                <span className="opacity-50 text-[8px] uppercase">{tpl.name || 'BASE'}</span>
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
 
                             {/* JUGADORES */}
-                            <div className="border-t border-gray-800 pt-4">
-                                <label className="text-sm font-medium text-gray-300 mb-2 block">Jugadores y Pagos</label>
-                                <PlayerPaymentList
-                                    players={players}
-                                    items={items}
-                                    priceTemplates={clubConfig.priceTemplates || []}
-                                    onPlayersChange={setPlayers}
-                                    onSearchUser={onSearchUser}
-                                    onPayAll={() => {
-                                        setPlayers(players.map(p => ({ ...p, paid: true })));
-                                    }}
-                                />
+                            <div className="space-y-4 pt-4">
+                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest leading-none block">Distribución de Jugadores</label>
+                                <div className="bg-gray-950/40 rounded-3xl border border-gray-800/80 p-2 shadow-inner">
+                                    <PlayerPaymentList
+                                        players={players}
+                                        items={items}
+                                        priceTemplates={clubConfig.priceTemplates || []}
+                                        onPlayersChange={setPlayers}
+                                        onSearchUser={onSearchUser}
+                                        onPayAll={() => {
+                                            setPlayers(players.map(p => ({ ...p, paid: true })));
+                                        }}
+                                    />
+                                </div>
                             </div>
 
                             {/* EXTRAS */}
-                            <div className="border-t border-gray-800 pt-4">
-                                <label className="text-sm font-medium text-gray-300 mb-2 block">Extras / Tienda</label>
-                                <ExtrasSelector
-                                    availableExtras={clubConfig.extras || []}
-                                    items={items}
-                                    players={players}
-                                    onItemsChange={setItems}
-                                />
+                            <div className="space-y-4 pt-4">
+                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest leading-none block">Complementos y Alquileres</label>
+                                <div className="bg-gray-950/40 rounded-3xl border border-gray-800/80 p-4 shadow-inner">
+                                    <ExtrasSelector
+                                        availableExtras={clubConfig.extras || []}
+                                        items={items}
+                                        players={players}
+                                        onItemsChange={setItems}
+                                    />
+                                </div>
                             </div>
                         </>
                     )}
 
                     {/* NOTAS */}
-                    <div className={activeTab === 'reservation' ? "border-t border-gray-800 pt-4" : ""}>
-                        <label className="text-sm font-medium text-gray-300 mb-1 block">Notas internas</label>
+                    <div className="space-y-4 pt-4 pb-4">
+                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest leading-none block">Observaciones Internas</label>
                         <textarea
                             value={notes}
                             onChange={(e) => setNotes(e.target.value)}
                             rows={3}
-                            className="w-full bg-gray-800 border border-gray-700 rounded-lg p-3 text-sm text-white focus:border-green-500 outline-none resize-none"
-                            placeholder="Notas visibles solo para el club..."
+                            className="w-full bg-gray-950 border border-gray-800 rounded-2xl p-5 text-sm text-gray-200 focus:border-gray-600 outline-none resize-none transition-all shadow-inner placeholder:text-gray-700 font-medium"
+                            placeholder="Añade detalles relevantes sobre esta reserva..."
                         />
                     </div>
-
                 </div>
 
                 {/* FOOTER */}
-                <div className="p-4 bg-gray-900 border-t border-gray-800 sticky bottom-0 z-10 flex justify-end gap-3">
+                <div className="p-5 md:p-8 bg-gray-900 border-t border-gray-800 shrink-0 flex flex-col md:flex-row gap-4">
                     <button
                         onClick={onClose}
-                        className="px-4 py-2 text-sm font-medium text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition"
+                        className="order-2 md:order-1 flex-1 md:flex-none px-8 py-4 text-xs font-black text-gray-500 hover:text-white rounded-2xl transition-all uppercase tracking-widest border border-transparent hover:border-gray-800"
                         disabled={processing}
                     >
-                        Cancelar
+                        DESCARTAR
                     </button>
                     <button
                         onClick={handleSubmit}
                         disabled={processing}
-                        className={`px-6 py-2 text-sm font-bold text-white rounded-lg shadow-lg transform active:scale-95 transition disabled:opacity-50 disabled:pointer-events-none flex items-center gap-2
+                        className={`order-1 md:order-2 flex-2 md:flex-none px-10 py-4 text-xs font-black text-white rounded-2xl shadow-2xl transform active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-3 ring-1 ring-white/10 tracking-widest uppercase
                             ${activeTab === 'reservation'
-                                ? 'bg-green-600 hover:bg-green-500 shadow-green-900/20'
-                                : 'bg-red-600 hover:bg-red-500 shadow-red-900/20'
+                                ? 'bg-gradient-to-br from-green-500 to-green-700 hover:from-green-400 hover:to-green-600 shadow-green-900/40'
+                                : 'bg-gradient-to-br from-red-500 to-red-700 hover:from-red-400 hover:to-red-600 shadow-red-900/40'
                             }`}
                     >
                         {processing ? (
                             <>
-                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                Procesando...
+                                <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                                PROCESANDO
                             </>
                         ) : (
                             <>
-                                {activeTab === 'reservation' ? 'Crear Reserva' : 'Bloquear Pista'}
+                                {activeTab === 'reservation' ? 'CONFIRMAR RESERVA' : 'CONFIRMAR BLOQUEO'}
                             </>
                         )}
                     </button>

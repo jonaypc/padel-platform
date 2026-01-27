@@ -41,17 +41,19 @@ export function ReservationGrid({
     };
 
     return (
-        <div className="h-full overflow-y-auto overflow-x-auto rounded-xl border border-gray-700 bg-gray-900/50 custom-scrollbar pb-2">
+        <div className="h-full overflow-y-auto overflow-x-auto rounded-xl border border-gray-600 bg-gray-900 shadow-2xl custom-scrollbar pb-2">
             <div className="min-w-[800px] lg:min-w-0">
                 {/* Cabecera de pistas */}
-                <div className="flex border-b border-gray-700 sticky top-0 z-20 bg-gray-900 shadow-sm">
-                    <div className="w-16 shrink-0 bg-gray-800 sticky left-0 z-30 border-r border-gray-700 shadow-md" />
+                <div className="flex border-b border-gray-600 sticky top-0 z-20 bg-gray-900/95 backdrop-blur-sm shadow-md">
+                    <div className="w-16 shrink-0 bg-gray-800/50 sticky left-0 z-30 border-r border-gray-600 shadow-xl" />
                     {courts.map(court => (
                         <div
                             key={court.id}
-                            className="flex-1 p-3 text-center border-r border-gray-700 bg-gray-800 last:border-r-0"
+                            className="flex-1 p-4 text-center border-r border-gray-600 last:border-r-0"
                         >
-                            <span className="font-semibold text-white text-sm">{court.name}</span>
+                            <span className="font-black text-white text-xs uppercase tracking-widest leading-none drop-shadow-sm">
+                                {court.name}
+                            </span>
                         </div>
                     ))}
                 </div>
@@ -67,11 +69,13 @@ export function ReservationGrid({
                     return (
                         <div
                             key={slotMs}
-                            className="flex border-b border-gray-800 last:border-b-0 h-20 hover:bg-white/5 transition-colors"
+                            className="flex border-b border-gray-800/80 last:border-b-0 h-24 hover:bg-white/[0.02] transition-colors"
                         >
                             {/* Hora sticky */}
-                            <div className="w-16 shrink-0 p-2 text-xs text-gray-400 border-r border-gray-700 bg-gray-900 sticky left-0 z-10 flex flex-col justify-between shadow-md">
-                                <span>{slotTime}</span>
+                            <div className="w-16 shrink-0 p-3 text-[10px] font-black text-gray-500 border-r border-gray-700 bg-gray-950 sticky left-0 z-10 flex flex-col justify-start shadow-2xl">
+                                <span className="text-gray-300 bg-gray-800 px-1 py-0.5 rounded border border-gray-700 text-center">
+                                    {slotTime}
+                                </span>
                             </div>
 
                             {/* Celdas por pista */}
@@ -84,7 +88,7 @@ export function ReservationGrid({
                                 return (
                                     <div
                                         key={`${court.id}-${slotMs}`}
-                                        className="flex-1 border-r border-gray-800 last:border-r-0 p-1 relative group"
+                                        className="flex-1 border-r border-gray-800/50 last:border-r-0 p-1.5 relative group bg-grid-white/[0.02]"
                                     >
                                         <ReservationSlot
                                             reservation={startingReservation}

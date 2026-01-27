@@ -191,11 +191,7 @@ export function useReservations() {
         players?: ReservationPlayer[];
         items?: ReservationItem[];
     }) => {
-        console.log("createReservation: Invoked", data);
-        if (!clubConfig) {
-            console.error("createReservation: No clubConfig");
-            return { error: 'No club config' };
-        }
+        if (!clubConfig) return { error: 'No club config' };
 
         setProcessing(true);
 
@@ -223,26 +219,21 @@ export function useReservations() {
                 items: data.items,
                 payment_status: paymentStatus,
             };
-            console.log("createReservation: Inserting...", insertPayload);
 
             const { error } = await supabase.from('reservations').insert(insertPayload);
 
             if (error) {
-                console.error("Error creating reservation (DB):", error);
                 return { error: error.message };
             }
 
-            console.log("createReservation: Insert success. Reloading reservations...");
-            await loadReservations();
-            console.log("createReservation: Reload complete.");
+            // Liberamos el procesamiento ANTES de recargar para que el modal se cierre rápido
+            setProcessing(false);
+            loadReservations(); // Recargar en segundo plano
             return { error: null };
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
+            setProcessing(false);
             console.error("Unexpected error creating reservation:", err);
             return { error: err.message || "Error desconocido" };
-        } finally {
-            console.log("createReservation: Finally block. Setting processing=false");
-            setProcessing(false);
         }
     };
 
@@ -263,7 +254,6 @@ export function useReservations() {
         setProcessing(true);
 
         try {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const updateData: any = {};
 
             if (data.courtId) updateData.court_id = data.courtId;
@@ -296,16 +286,18 @@ export function useReservations() {
                 .update(updateData)
                 .eq('id', id);
 
-            if (error) return { error: error.message };
+            if (error) {
+                setProcessing(false);
+                return { error: error.message };
+            }
 
-            await loadReservations();
-            return { error: null };
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } catch (err: any) {
-            console.error("Unexpected error updating reservation:", err);
-            return { error: err.message };
-        } finally {
             setProcessing(false);
+            loadReservations();
+            return { error: null };
+        } catch (err: any) {
+            setProcessing(false);
+            console.error("Unexpected error updating reservation:", err);
+            return { error: err.message || "Error desconocido" };
         }
     };
 
@@ -319,15 +311,17 @@ export function useReservations() {
                 .update({ status: 'cancelled' })
                 .eq('id', id);
 
-            if (error) return { error: error.message };
+            if (error) {
+                setProcessing(false);
+                return { error: error.message };
+            }
 
-            await loadReservations();
-            return { error: null };
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } catch (err: any) {
-            return { error: err.message };
-        } finally {
             setProcessing(false);
+            loadReservations();
+            return { error: null };
+        } catch (err: any) {
+            setProcessing(false);
+            return { error: err.message || "Error al cancelar" };
         }
     };
 
