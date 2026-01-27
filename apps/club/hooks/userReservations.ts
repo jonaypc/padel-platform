@@ -191,7 +191,11 @@ export function useReservations() {
         players?: ReservationPlayer[];
         items?: ReservationItem[];
     }) => {
-        if (!clubConfig) return { error: 'No club config' };
+        console.log("createReservation: Invoked", data);
+        if (!clubConfig) {
+            console.error("createReservation: No clubConfig");
+            return { error: 'No club config' };
+        }
 
         setProcessing(true);
 
@@ -205,7 +209,7 @@ export function useReservations() {
             if (playersPaid === totalPlayers && totalPlayers > 0) paymentStatus = 'completed';
             else if (playersPaid > 0) paymentStatus = 'partial';
 
-            const { error } = await supabase.from('reservations').insert({
+            const insertPayload = {
                 club_id: clubConfig.id,
                 court_id: data.courtId,
                 user_id: data.userId || null,
@@ -218,20 +222,26 @@ export function useReservations() {
                 players: data.players?.filter(p => p.name.trim() !== ''),
                 items: data.items,
                 payment_status: paymentStatus,
-            });
+            };
+            console.log("createReservation: Inserting...", insertPayload);
+
+            const { error } = await supabase.from('reservations').insert(insertPayload);
 
             if (error) {
                 console.error("Error creating reservation (DB):", error);
                 return { error: error.message };
             }
 
+            console.log("createReservation: Insert success. Reloading reservations...");
             await loadReservations();
+            console.log("createReservation: Reload complete.");
             return { error: null };
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
             console.error("Unexpected error creating reservation:", err);
             return { error: err.message || "Error desconocido" };
         } finally {
+            console.log("createReservation: Finally block. Setting processing=false");
             setProcessing(false);
         }
     };

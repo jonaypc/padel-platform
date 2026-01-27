@@ -157,12 +157,12 @@ export function CreateReservationModal({
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col">
+            <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] h-[90vh] md:h-auto overflow-y-auto flex flex-col">
 
                 {/* HEADER */}
-                <div className="flex justify-between items-center p-4 border-b border-gray-800 sticky top-0 bg-gray-900 z-10">
+                <div className="flex justify-between items-center p-3 md:p-4 border-b border-gray-800 sticky top-0 bg-gray-900 z-10">
                     <div>
-                        <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                        <h2 className="text-lg md:text-xl font-bold text-white flex items-center gap-2">
                             Nueva {activeTab === 'reservation' ? 'Reserva' : 'Bloqueo'}
                         </h2>
                         <div className="text-sm text-gray-400 flex items-center gap-2 mt-1">
