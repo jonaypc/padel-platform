@@ -54,13 +54,19 @@ export default function MyReservationsPage() {
 
         if (error) {
             console.error("Error loading reservations:", error);
+            alert("Error al cargar tus reservas: " + error.message);
         } else {
-            // Transformamos datos si vienen como arrays por el join
-            const transformed = (data || []).map((r: any) => ({
-                ...r,
-                clubs: Array.isArray(r.clubs) ? r.clubs[0] : r.clubs,
-                courts: Array.isArray(r.courts) ? r.courts[0] : r.courts
-            }));
+            // Transformamos datos si vienen como arrays por el join (PostgREST quirk)
+            const transformed = (data || []).map((r: any) => {
+                const clubObj = Array.isArray(r.clubs) ? r.clubs[0] : r.clubs;
+                const courtObj = Array.isArray(r.courts) ? r.courts[0] : r.courts;
+
+                return {
+                    ...r,
+                    clubs: clubObj || { name: 'Club Desconocido', location: '' },
+                    courts: courtObj || { name: 'Pista Provisoria' }
+                };
+            });
 
             // Filtrado estricto: Solo mostramos si el usuario está en la lista de jugadores
             // Esto cumple la petición: "Si se saca del partido que no le salga mas"

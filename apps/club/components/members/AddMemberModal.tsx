@@ -120,7 +120,7 @@ export function AddMemberModal({ onClose, onAdd, onSearch }: AddMemberModalProps
                                         key={user.id}
                                         onClick={() => {
                                             setSelectedUser(user);
-                                            setQuery(user.display_name || user.full_name || user.email);
+                                            setQuery(user.display_name || user.full_name || user.email || '');
                                         }}
                                         className="w-full flex items-center gap-4 p-4 hover:bg-white/5 transition-colors border-b border-white/5 last:border-none text-left"
                                     >

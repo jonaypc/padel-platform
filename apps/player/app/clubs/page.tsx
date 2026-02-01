@@ -36,7 +36,7 @@ export default function ClubsPage() {
         if (error) {
           // Ignore AbortError (happens in dev with StrictMode)
           if (error.message?.includes('AbortError') || error.code === 'ABORT_ERR') {
-            console.log('Request aborted (normal in dev)');
+            // Request aborted - normal in dev
             return;
           }
           console.error("Error Supabase al cargar clubs:", error);

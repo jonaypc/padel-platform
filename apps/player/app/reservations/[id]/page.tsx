@@ -18,6 +18,7 @@ interface ReservationPlayer {
 
 interface Reservation {
     id: string;
+    club_id: string;
     start_time: string;
     end_time: string;
     status: 'confirmed' | 'cancelled';
@@ -50,6 +51,7 @@ export default function ReservationDetailPage() {
             .from('reservations')
             .select(`
                 id, 
+                club_id,
                 start_time, 
                 end_time, 
                 status,
@@ -66,13 +68,13 @@ export default function ReservationDetailPage() {
         } else {
             setReservation(data as any);
             // Verificar si el usuario ya sigue al club
-            if (userId) {
+            if (userId && data.club_id) {
                 const { data: followData } = await supabase
                     .from('club_followers')
                     .select('id')
-                    .eq('club_id', data.clubs.id)
+                    .eq('club_id', data.club_id)
                     .eq('user_id', userId)
-                    .single();
+                    .maybeSingle();
 
                 setIsFollower(!!followData);
             }
@@ -102,8 +104,7 @@ export default function ReservationDetailPage() {
                         table: 'reservations',
                         filter: `id=eq.${id}`
                     },
-                    (payload) => {
-                        console.log('Realtime update in player detail:', payload);
+                    () => {
                         loadReservationData();
                     }
                 )
@@ -116,9 +117,7 @@ export default function ReservationDetailPage() {
     }, [id, supabase]);
 
     const handleConfirmAttendance = async () => {
-        console.log("handleConfirmAttendance: Starting...", { userId, reservationId: reservation?.id });
         if (!reservation || !userId || !reservation.players) {
-            console.log("handleConfirmAttendance: Early return", { reservation, userId });
             return;
         }
         setProcessing(true);
@@ -130,10 +129,7 @@ export default function ReservationDetailPage() {
             return p;
         });
 
-        console.log("handleConfirmAttendance: New players array", newPlayers);
-
         try {
-            console.log("handleConfirmAttendance: Sending update to Supabase...");
             const { error } = await supabase
                 .from('reservations')
                 .update({ players: newPlayers })
@@ -143,7 +139,6 @@ export default function ReservationDetailPage() {
                 console.error("handleConfirmAttendance: Supabase error", error);
                 alert("Error al confirmar asistencia: " + error.message);
             } else {
-                console.log("handleConfirmAttendance: Success!");
                 setReservation({ ...reservation, players: newPlayers });
             }
         } catch (err) {
@@ -151,7 +146,6 @@ export default function ReservationDetailPage() {
             alert("Error inesperado: " + (err as Error).message);
         } finally {
             setProcessing(false);
-            console.log("handleConfirmAttendance: Finished processing.");
         }
     };
 
@@ -242,7 +236,7 @@ export default function ReservationDetailPage() {
             const { error } = await supabase
                 .from('club_followers')
                 .insert({
-                    club_id: reservation.clubs.id,
+                    club_id: reservation.club_id,
                     user_id: userId
                 });
 

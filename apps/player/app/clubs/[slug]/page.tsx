@@ -37,7 +37,7 @@ interface Reservation {
 }
 
 interface Player {
-    user_id: string;
+    id: string;
     display_name: string;
     avatar_url: string;
     username: string;
@@ -123,7 +123,7 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
 
     // Comprobar si el usuario sigue al club
     useEffect(() => {
-        if (!club) return;
+        if (!club?.id) return;
 
         async function checkFollowStatus() {
             setCheckingFollower(true);
@@ -137,12 +137,12 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
                 const { data, error } = await supabase
                     .from('club_followers')
                     .select('id')
-                    .eq('club_id', club.id)
+                    .eq('club_id', club?.id)
                     .eq('user_id', user.id)
                     .maybeSingle();
 
                 if (error) {
-                    console.error('Error al comprobar seguimiento:', error);
+                    console.error('Error al comprobar seguimiento:', error.message);
                 } else {
                     setIsFollower(!!data);
                 }
@@ -158,19 +158,24 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
 
     // Cargar jugadores (comunidad)
     useEffect(() => {
-        if (!club || activeTab !== 'players') return;
+        if (!club?.id || activeTab !== 'players') return;
 
         async function loadPlayers() {
             setLoadingPlayers(true);
-            const { data, error } = await supabase.rpc('get_club_community', {
-                p_club_id: club.id,
-                p_search: ''
-            });
+            try {
+                const { data } = await supabase.rpc('get_club_community', {
+                    p_club_id: club!.id,
+                    p_search: ''
+                });
 
-            if (data) {
-                setPlayers(data as Player[]);
+                if (data) {
+                    setPlayers(data as Player[]);
+                }
+            } catch (err) {
+                console.error('Error loading players:', err);
+            } finally {
+                setLoadingPlayers(false);
             }
-            setLoadingPlayers(false);
         }
 
         loadPlayers();
@@ -214,10 +219,8 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
 
     // Cargar disponibilidad
     useEffect(() => {
-        if (!club) return;
+        if (!club?.id) return;
         let isMounted = true;
-
-        const clubId = club.id;
 
         async function loadAvailability() {
             try {
@@ -273,6 +276,15 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
         const endTime = new Date(selectedSlot.time);
         endTime.setMinutes(selectedSlot.time.getMinutes() + club.booking_duration);
 
+        // SYNC: Incluimos al creador en la lista de jugadores para que aparezca en su feed y comunidad
+        const initialPlayers = [{
+            id: user.id,
+            name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Jugador',
+            confirmed: true,
+            paid: false,
+            amount: 0
+        }];
+
         const { error } = await supabase
             .from('reservations')
             .insert({
@@ -282,7 +294,8 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
                 start_time: selectedSlot.time.toISOString(),
                 end_time: endTime.toISOString(),
                 status: 'confirmed',
-                type: 'booking'
+                type: 'booking',
+                players: initialPlayers
             });
 
         if (error) {
@@ -605,7 +618,7 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
                         ) : (
                             <div className="grid grid-cols-2 gap-3">
                                 {players.map((player) => (
-                                    <div key={player.user_id} className="bg-gray-800 border border-gray-700 rounded-2xl p-4 flex flex-col items-center gap-3 group hover:border-green-500/50 transition-all">
+                                    <div key={player.id} className="bg-gray-800 border border-gray-700 rounded-2xl p-4 flex flex-col items-center gap-3 group hover:border-green-500/50 transition-all">
                                         <div className="relative">
                                             <div className="w-14 h-14 rounded-2xl bg-gray-700 overflow-hidden border border-gray-600 group-hover:scale-105 transition-transform">
                                                 {player.avatar_url ? (
@@ -626,7 +639,10 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
                                                 @{player.username || 'jugador'}
                                             </p>
                                         </div>
-                                        <button className="w-full bg-gray-900 hover:bg-gray-750 text-[10px] text-gray-400 hover:text-white font-black uppercase py-2 rounded-xl border border-gray-700 transition-all">
+                                        <button
+                                            onClick={() => router.push(`/players/${player.username || player.id}`)}
+                                            className="w-full bg-gray-900 hover:bg-gray-750 text-[10px] text-gray-400 hover:text-white font-black uppercase py-2 rounded-xl border border-gray-700 transition-all"
+                                        >
                                             Ver Perfil
                                         </button>
                                     </div>
