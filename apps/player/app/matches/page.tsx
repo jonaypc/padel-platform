@@ -27,6 +27,8 @@ type MatchRow = {
 
   overall_feeling: number | null;
   notes: string | null;
+  elo_change?: number | null;
+  status?: string;
 };
 
 function hasAnyScore(m: MatchRow): boolean {
@@ -141,12 +143,12 @@ function buildWhatsAppMessage(m: MatchRow) {
   const resultLabel = pending
     ? "Pendiente"
     : incomplete
-    ? "Inacabado"
-    : win === true
-    ? "Victoria"
-    : win === false
-    ? "Derrota"
-    : "—";
+      ? "Inacabado"
+      : win === true
+        ? "Victoria"
+        : win === false
+          ? "Derrota"
+          : "—";
 
   const partner = m.partner_name || "—";
   const rivals = `${m.opponent1_name || "—"}${m.opponent2_name ? ` / ${m.opponent2_name}` : ""}`;
@@ -239,7 +241,11 @@ export default function MatchesPage() {
             set3_us,
             set3_them,
             overall_feeling,
-            notes
+            notes,
+            status,
+            match_participants (
+                elo_change
+            )
           )
         `
         )
@@ -263,10 +269,12 @@ export default function MatchesPage() {
       };
 
       const partMatches =
-        ((partRes.data ?? []) as ParticipantRow[])
+        ((partRes.data ?? []) as any[])
           .map((r) => {
-            // matches puede ser un array o un objeto único dependiendo de la query
             const match = Array.isArray(r.matches) ? r.matches[0] : r.matches;
+            if (match) {
+              match.elo_change = r.match_participants?.[0]?.elo_change || r.elo_change;
+            }
             return match;
           })
           .filter((m): m is MatchRow => m !== null) || [];
@@ -422,6 +430,12 @@ export default function MatchesPage() {
                     <span className="rounded-full bg-gray-700 border border-gray-600 px-3 py-1 text-xs text-gray-300">
                       Sensación: {m.overall_feeling ?? "—"}
                     </span>
+
+                    {m.status === 'confirmed' && m.elo_change !== undefined && m.elo_change !== null && (
+                      <span className={`rounded-xl px-3 py-1 text-xs font-black shadow-lg ${m.elo_change >= 0 ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
+                        {m.elo_change >= 0 ? `+${m.elo_change}` : m.elo_change} PTS
+                      </span>
+                    )}
 
                     <button
                       onClick={(e) => shareWhatsApp(e, m)}

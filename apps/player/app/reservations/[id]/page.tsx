@@ -5,7 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import AppHeader from "../../components/AppHeader";
 import BottomNav from "../../components/BottomNav";
-import { Calendar, MapPin, Clock, Users, CheckCircle2, AlertCircle, ChevronLeft, Check } from "lucide-react";
+import { Calendar, MapPin, Clock, Users, CheckCircle2, AlertCircle, ChevronLeft, Check, Share2, UserPlus } from "lucide-react";
+import PlayerSearchModal from "../../components/PlayerSearchModal";
 
 interface ReservationPlayer {
     name: string;
@@ -40,6 +41,9 @@ export default function ReservationDetailPage() {
     const [loading, setLoading] = useState(true);
     const [userId, setUserId] = useState<string | null>(null);
     const [processing, setProcessing] = useState(false);
+    const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+    const [isFollower, setIsFollower] = useState(false);
+    const [checkingFollower, setCheckingFollower] = useState(true);
 
     const loadReservationData = async () => {
         const { data, error } = await supabase
@@ -61,8 +65,20 @@ export default function ReservationDetailPage() {
             console.error("Error loading reservation:", error);
         } else {
             setReservation(data as any);
+            // Verificar si el usuario ya sigue al club
+            if (userId) {
+                const { data: followData } = await supabase
+                    .from('club_followers')
+                    .select('id')
+                    .eq('club_id', data.clubs.id)
+                    .eq('user_id', userId)
+                    .single();
+
+                setIsFollower(!!followData);
+            }
         }
         setLoading(false);
+        setCheckingFollower(false);
     };
 
     useEffect(() => {
@@ -139,6 +155,31 @@ export default function ReservationDetailPage() {
         }
     };
 
+    const handleShare = async () => {
+        const url = `${window.location.origin}/reservations/${id}/join`;
+        const text = `¡Únete a mi partido de pádel! 🎾\nClub: ${reservation?.clubs.name}\nPista: ${reservation?.courts.name}\nFecha: ${start.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}\n\nEnlace para unirse:`;
+
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: 'Invitación a Pádel',
+                    text: text,
+                    url: url,
+                });
+            } catch (err) {
+                console.log('Error sharing:', err);
+            }
+        } else {
+            // Fallback: Copiar al portapapeles
+            try {
+                await navigator.clipboard.writeText(`${text} ${url}`);
+                alert("¡Enlace copiado al portapapeles!");
+            } catch (err) {
+                console.error('Error copying:', err);
+            }
+        }
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -156,6 +197,64 @@ export default function ReservationDetailPage() {
             </div>
         );
     }
+
+    const handleAddPlayer = async (selected: { id: string, name: string }) => {
+        if (!reservation || !reservation.players) return;
+
+        if (reservation.players.length >= 4) {
+            alert("La reserva ya está completa (máximo 4 jugadores).");
+            return;
+        }
+
+        setProcessing(true);
+        const newPlayer: ReservationPlayer = {
+            id: selected.id,
+            name: selected.name,
+            confirmed: true,
+            paid: false,
+            amount: 0
+        };
+
+        const newPlayers = [...reservation.players, newPlayer];
+
+        try {
+            const { error } = await supabase
+                .from('reservations')
+                .update({ players: newPlayers })
+                .eq('id', id);
+
+            if (error) throw error;
+
+            setReservation({ ...reservation, players: newPlayers });
+            setIsSearchModalOpen(false);
+        } catch (err: any) {
+            console.error("Error adding player:", err);
+            alert("No se pudo añadir al jugador: " + err.message);
+        } finally {
+            setProcessing(false);
+        }
+    };
+
+    const handleJoinCommunity = async () => {
+        if (!reservation || !userId) return;
+        setProcessing(true);
+        try {
+            const { error } = await supabase
+                .from('club_followers')
+                .insert({
+                    club_id: reservation.clubs.id,
+                    user_id: userId
+                });
+
+            if (error) throw error;
+            setIsFollower(true);
+        } catch (err: any) {
+            console.error("Error joining community:", err);
+            alert("No se pudo unir a la comunidad.");
+        } finally {
+            setProcessing(false);
+        }
+    };
 
     const start = new Date(reservation.start_time);
     const end = new Date(reservation.end_time);
@@ -183,8 +282,30 @@ export default function ReservationDetailPage() {
                             <h1 className="text-2xl font-black text-white uppercase italic tracking-tight leading-none">
                                 {reservation.clubs.name}
                             </h1>
-                            <p className="text-green-300 font-bold text-sm mt-1">{reservation.courts.name}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                                <p className="text-green-300 font-bold text-sm">{reservation.courts.name}</p>
+                                {!isFollower && !checkingFollower && (
+                                    <button
+                                        onClick={handleJoinCommunity}
+                                        className="bg-green-600/20 hover:bg-green-600/40 text-green-400 text-[9px] font-black px-2 py-0.5 rounded-full border border-green-500/30 uppercase transition-all"
+                                    >
+                                        + Unirme al Club
+                                    </button>
+                                )}
+                                {isFollower && (
+                                    <span className="text-[9px] font-black text-green-500 uppercase flex items-center gap-1">
+                                        <Check size={10} /> Miembro de Comunidad
+                                    </span>
+                                )}
+                            </div>
                         </div>
+                        <button
+                            onClick={handleShare}
+                            className="absolute top-4 right-4 bg-white/10 hover:bg-white/20 backdrop-blur-md p-3 rounded-full text-white transition-all active:scale-90"
+                            title="Invitar amigos"
+                        >
+                            <Share2 size={20} />
+                        </button>
                     </div>
 
                     <div className="p-6 space-y-8">
@@ -249,6 +370,26 @@ export default function ReservationDetailPage() {
                                     </div>
                                 ))}
                             </div>
+
+                            <button
+                                onClick={handleShare}
+                                className="w-full bg-gray-900/40 hover:bg-gray-900/60 rounded-2xl p-4 border border-dashed border-gray-600 flex items-center justify-center gap-2 group transition-all"
+                            >
+                                <Users size={16} className="text-gray-500 group-hover:text-green-500" />
+                                <span className="text-xs font-bold text-gray-400 group-hover:text-white uppercase tracking-widest italic">
+                                    Invitar Amigos
+                                </span>
+                            </button>
+
+                            <button
+                                onClick={() => setIsSearchModalOpen(true)}
+                                className="w-full bg-green-600/10 hover:bg-green-600/20 rounded-2xl p-4 border border-dashed border-green-500/30 flex items-center justify-center gap-2 group transition-all"
+                            >
+                                <UserPlus size={16} className="text-green-500" />
+                                <span className="text-xs font-bold text-green-400 group-hover:text-green-300 uppercase tracking-widest italic">
+                                    Añadir Jugador Registrado
+                                </span>
+                            </button>
                         </section>
 
                         {/* Action Section */}
@@ -288,6 +429,13 @@ export default function ReservationDetailPage() {
             </div>
 
             <BottomNav />
+
+            <PlayerSearchModal
+                isOpen={isSearchModalOpen}
+                onClose={() => setIsSearchModalOpen(false)}
+                onSelect={handleAddPlayer}
+                excludeIds={reservation.players?.map(p => p.id).filter(Boolean) as string[] || []}
+            />
         </div>
     );
 }

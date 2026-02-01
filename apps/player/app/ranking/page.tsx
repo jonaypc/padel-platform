@@ -30,27 +30,12 @@ export default function RankingPage() {
       setLoading(true);
 
       const { data, error } = await supabase
-        .from("profiles")
-        .select("id, display_name, username, is_public, avatar_url, elo_rating")
-        .order("elo_rating", { ascending: false })
+        .from("player_rankings")
+        .select("*")
         .limit(50);
 
       if (!error && data) {
-
-        const mapped = data.map(p => ({
-          user_id: p.id,
-          display_name: p.display_name || "Jugador",
-          username: p.username,
-          is_public: p.is_public || false,
-          avatar_url: p.avatar_url,
-          points: p.elo_rating ?? 1200,
-          // Datos temporales hasta tener una vista eficiente de estadísticas + ELO
-          matches_played: 0,
-          wins: 0,
-          losses: 0,
-          win_rate: 0
-        }));
-        setRankings(mapped);
+        setRankings(data as RankingRow[]);
       }
       setLoading(false);
     }

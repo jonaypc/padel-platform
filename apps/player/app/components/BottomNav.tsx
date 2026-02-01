@@ -7,7 +7,7 @@ export default function BottomNav() {
   const pathname = usePathname();
 
   const navItems = [
-    { href: "/app", label: "Inicio", icon: "🏠" },
+    { href: "/dashboard", label: "Inicio", icon: "🏠" },
     { href: "/stats", label: "Estadísticas", icon: "📊" },
     { href: "/matches", label: "Partidos", icon: "🎾" },
     { href: "/ranking", label: "Ranking", icon: "🏆" },
@@ -15,8 +15,8 @@ export default function BottomNav() {
   ];
 
   const isActive = (href: string) => {
-    if (href === "/app") {
-      return pathname === "/app";
+    if (href === "/dashboard") {
+      return pathname === "/dashboard";
     }
     return pathname?.startsWith(href);
   };
@@ -30,11 +30,10 @@ export default function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center justify-center px-3 py-2 rounded-lg transition-colors ${
-                active
+              className={`flex flex-col items-center justify-center px-3 py-2 rounded-lg transition-colors ${active
                   ? "text-green-500 bg-gray-800"
                   : "text-gray-400 hover:text-green-500"
-              }`}
+                }`}
             >
               <span className="text-2xl mb-1">{item.icon}</span>
               <span className="text-xs font-medium">{item.label}</span>

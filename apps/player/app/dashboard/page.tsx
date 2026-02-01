@@ -10,6 +10,8 @@ import MonitorCard from "../components/MonitorCard";
 import LastMatchCard from "../components/LastMatchCard";
 import BottomNav from "../components/BottomNav";
 import StatCard from "../components/StatCard";
+import SocialFeed from "../components/SocialFeed";
+import { UserCircle, Bell } from "lucide-react";
 
 type MatchRow = {
   id: string;
@@ -290,37 +292,27 @@ export default function AppHome() {
           </div>
         )}
 
-        {/* Mi Ranking */}
-        {totalPlayed > 0 && (
-          <div className="mb-6 bg-gray-800 rounded-2xl p-4 border border-gray-700 space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-white">🏆 Mi Ranking</h2>
-              <button
-                onClick={() => router.push("/stats")}
-                className="text-xs text-green-500 hover:text-green-400 transition"
-              >
-                Ver más →
+        {/* MI COMUNIDAD (FEED) */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-black text-white uppercase italic tracking-tighter flex items-center gap-3">
+              <span className="w-2 h-8 bg-green-500 rounded-full" />
+              Comunidad
+            </h2>
+            <div className="flex gap-2">
+              <button className="p-2 bg-gray-800 rounded-xl border border-gray-700 text-gray-400 hover:text-white transition-all">
+                <Bell size={20} />
+              </button>
+              <button className="p-2 bg-gray-800 rounded-xl border border-gray-700 text-gray-400 hover:text-white transition-all">
+                <UserCircle size={20} />
               </button>
             </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <StatCard
-                label="Mejor pareja"
-                value={bestPartner ? `${bestPartner.name} (${bestPartner.pct}%)` : "—"}
-              />
-              <StatCard
-                label="Mejor ubicación"
-                value={bestLocation ? `${bestLocation.name} (${bestLocation.pct}%)` : "—"}
-              />
-              <StatCard label="Mejor racha" value={bestWinStreak} />
-              <StatCard label="% victorias" value={`${winPercentage}%`} />
-            </div>
-
-            <p className="text-[11px] text-gray-500 leading-relaxed">
-              Nota: este ranking se calcula con tus <span className="text-gray-300">últimos 50</span> partidos.
-            </p>
           </div>
-        )}
+
+          <SocialFeed />
+        </div>
+
+        {/* Mis Estadísticas (Antes Ranking) */}
 
         {/* Tarjetas de monitores */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
@@ -356,71 +348,66 @@ export default function AppHome() {
           </button>
         </div>
 
-        {/* Sección Mi actividad reciente */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-white">Mi actividad reciente</h2>
+        {/* Mi actividad reciente oculta en favor del feed social */}
+
+        {matches.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {pastMatches.slice(0, 6).map((match) => {
+              const matchResult = isWin(match);
+              const isIncomplete = match.notes && match.notes.includes("[PARTIDO INACABADO");
+
+              let setsCompletados = 0;
+              if (match.set1_us != null && match.set1_them != null) setsCompletados++;
+              if (match.set2_us != null && match.set2_them != null) setsCompletados++;
+              if (match.set3_us != null && match.set3_them != null) setsCompletados++;
+
+              let us = 0, them = 0;
+              if (match.set1_us != null && match.set1_them != null) {
+                if (match.set1_us > match.set1_them) us++;
+                else if (match.set1_them > match.set1_us) them++;
+              }
+              if (match.set2_us != null && match.set2_them != null) {
+                if (match.set2_us > match.set2_them) us++;
+                else if (match.set2_them > match.set2_us) them++;
+              }
+              if (match.set3_us != null && match.set3_them != null) {
+                if (match.set3_us > match.set3_them) us++;
+                else if (match.set3_them > match.set3_us) them++;
+              }
+
+              const partidoCompleto =
+                (setsCompletados >= 2 && (us >= 2 || them >= 2)) ||
+                (setsCompletados === 3 && us !== them);
+
+              const resultText =
+                isIncomplete || (!partidoCompleto && setsCompletados > 0)
+                  ? "Inacabado"
+                  : matchResult === true
+                    ? "Victoria"
+                    : matchResult === false
+                      ? "Derrota"
+                      : null;
+
+              const score = formatScore(match);
+              const timeAgo = getTimeAgo(match.played_at);
+
+              return (
+                <div key={match.id} className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+                  <LastMatchCard
+                    result={resultText}
+                    score={score}
+                    timeAgo={timeAgo}
+                    matchId={match.id}
+                  />
+                </div>
+              );
+            })}
           </div>
-
-          {matches.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {pastMatches.slice(0, 6).map((match) => {
-                const matchResult = isWin(match);
-                const isIncomplete = match.notes && match.notes.includes("[PARTIDO INACABADO");
-
-                let setsCompletados = 0;
-                if (match.set1_us != null && match.set1_them != null) setsCompletados++;
-                if (match.set2_us != null && match.set2_them != null) setsCompletados++;
-                if (match.set3_us != null && match.set3_them != null) setsCompletados++;
-
-                let us = 0, them = 0;
-                if (match.set1_us != null && match.set1_them != null) {
-                  if (match.set1_us > match.set1_them) us++;
-                  else if (match.set1_them > match.set1_us) them++;
-                }
-                if (match.set2_us != null && match.set2_them != null) {
-                  if (match.set2_us > match.set2_them) us++;
-                  else if (match.set2_them > match.set2_us) them++;
-                }
-                if (match.set3_us != null && match.set3_them != null) {
-                  if (match.set3_us > match.set3_them) us++;
-                  else if (match.set3_them > match.set3_us) them++;
-                }
-
-                const partidoCompleto =
-                  (setsCompletados >= 2 && (us >= 2 || them >= 2)) ||
-                  (setsCompletados === 3 && us !== them);
-
-                const resultText =
-                  isIncomplete || (!partidoCompleto && setsCompletados > 0)
-                    ? "Inacabado"
-                    : matchResult === true
-                      ? "Victoria"
-                      : matchResult === false
-                        ? "Derrota"
-                        : null;
-
-                const score = formatScore(match);
-                const timeAgo = getTimeAgo(match.played_at);
-
-                return (
-                  <div key={match.id} className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-                    <LastMatchCard
-                      result={resultText}
-                      score={score}
-                      timeAgo={timeAgo}
-                      matchId={match.id}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="bg-gray-800 rounded-xl p-4 border border-gray-700 text-center">
-              <p className="text-gray-400 text-sm">No hay partidos registrados todavía</p>
-            </div>
-          )}
-        </div>
+        ) : (
+          <div className="bg-gray-800 rounded-xl p-4 border border-gray-700 text-center">
+            <p className="text-gray-400 text-sm">No hay partidos registrados todavía</p>
+          </div>
+        )}
 
         {/* Accesos Rápidos */}
         <div className="mb-6">

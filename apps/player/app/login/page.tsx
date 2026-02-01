@@ -32,7 +32,7 @@ export default function LoginPage() {
     setLoading(false);
     if (error) setMsg(error.message);
     setMsg("Login correcto ✅");
-    window.location.href = "/app";
+    window.location.href = "/dashboard";
   }
 
   async function signInWithGoogle() {
@@ -40,7 +40,7 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/app`,
+        redirectTo: `${window.location.origin}/dashboard`,
       },
     });
 

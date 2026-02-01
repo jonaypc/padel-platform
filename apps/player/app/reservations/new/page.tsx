@@ -117,12 +117,25 @@ function NewReservationContent() {
             return;
         }
 
+        if (!court) return;
+
+        // Construir objetos Date completos para PostgreSQL timestamptz
+        const startDateTime = new Date(`${date}T${startTime}:00`);
+        const endDateTime = new Date(`${date}T${endTime}:00`);
+
         const { error: insertError } = await supabase.from("reservations").insert({
             user_id: sessionData.session.user.id,
+            club_id: court.clubs.id,
             court_id: courtId,
-            date: date,
-            start_time: startTime,
-            end_time: endTime,
+            start_time: startDateTime.toISOString(),
+            end_time: endDateTime.toISOString(),
+            type: 'booking',
+            status: 'confirmed',
+            players: [{
+                id: sessionData.session.user.id,
+                name: sessionData.session.user.email?.split('@')[0] || 'Jugador',
+                confirmed: true
+            }]
         });
 
         if (insertError) {

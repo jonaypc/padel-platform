@@ -65,8 +65,9 @@ export default function MyReservationsPage() {
             // Filtrado estricto: Solo mostramos si el usuario está en la lista de jugadores
             // Esto cumple la petición: "Si se saca del partido que no le salga mas"
             const filtered = transformed.filter((r: any) => {
+                const isOwner = r.user_id === user.id;
                 const isPlayer = r.players?.some((p: any) => p.id === user.id);
-                return isPlayer;
+                return isOwner || isPlayer;
             });
 
             setReservations(filtered as Reservation[]);

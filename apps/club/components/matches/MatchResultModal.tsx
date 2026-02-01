@@ -39,8 +39,17 @@ export default function MatchResultModal({ match, isOpen, onClose, onUpdate }: M
             const s3u = set3Us ? parseInt(set3Us) : null;
             const s3t = set3Them ? parseInt(set3Them) : null;
 
-            if (confirmStatus && (s1u === 0 && s1t === 0)) {
-                throw new Error("No se puede confirmar un partido sin resultado en el primer set.");
+            if (confirmStatus) {
+                if (s1u === 0 && s1t === 0) {
+                    throw new Error("No se puede confirmar un partido sin resultado en el primer set.");
+                }
+                const setsCompletados = (s1u !== 0 || s1t !== 0 ? 1 : 0) +
+                    (s2u !== 0 || s2t !== 0 ? 1 : 0) +
+                    (s3u !== null && (s3u !== 0 || s3t !== 0) ? 1 : 0);
+
+                if (setsCompletados < 2) {
+                    throw new Error("Se requieren al menos 2 sets registrados para confirmar un resultado oficial.");
+                }
             }
 
             const updates: Partial<Match> = {
@@ -165,8 +174,8 @@ export default function MatchResultModal({ match, isOpen, onClose, onUpdate }: M
                     <button
                         onClick={() => setConfirmStatus(!confirmStatus)}
                         className={`w-full group relative overflow-hidden p-6 rounded-3xl border transition-all duration-500 flex flex-col items-center gap-3 ${confirmStatus
-                                ? 'bg-yellow-500/10 border-yellow-500/50 shadow-[0_0_40px_rgba(234,179,8,0.1)]'
-                                : 'bg-white/5 border-white/10 hover:border-white/20'
+                            ? 'bg-yellow-500/10 border-yellow-500/50 shadow-[0_0_40px_rgba(234,179,8,0.1)]'
+                            : 'bg-white/5 border-white/10 hover:border-white/20'
                             }`}
                     >
                         <div className="flex items-center gap-4 w-full">

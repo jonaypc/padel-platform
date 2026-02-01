@@ -156,6 +156,44 @@ export default function SettingsPage() {
         setSchedule(newSchedule);
     };
 
+    // Funciones para Extras
+    const addExtra = () => {
+        setExtras([...extras, { name: "", price: 0 }]);
+    };
+
+    const removeExtra = (index: number) => {
+        const newExtras = [...extras];
+        newExtras.splice(index, 1);
+        setExtras(newExtras);
+    };
+
+    const updateExtra = (index: number, field: 'name' | 'price', value: string | number) => {
+        const newExtras = [...extras];
+        if (newExtras[index]) {
+            newExtras[index] = { ...newExtras[index], [field]: value };
+            setExtras(newExtras);
+        }
+    };
+
+    // Funciones para Plantillas de Precios
+    const addTemplate = () => {
+        setPriceTemplates([...priceTemplates, { label: "", price: 0 }]);
+    };
+
+    const removeTemplate = (index: number) => {
+        const newPriceTemplates = [...priceTemplates];
+        newPriceTemplates.splice(index, 1);
+        setPriceTemplates(newPriceTemplates);
+    };
+
+    const updateTemplate = (index: number, field: 'label' | 'price', value: string | number) => {
+        const newPriceTemplates = [...priceTemplates];
+        if (newPriceTemplates[index]) {
+            newPriceTemplates[index] = { ...newPriceTemplates[index], [field]: value };
+            setPriceTemplates(newPriceTemplates);
+        }
+    };
+
     const timeOptions: string[] = [];
     for (let h = 0; h < 24; h++) {
         timeOptions.push(`${h.toString().padStart(2, "0")}:00`);

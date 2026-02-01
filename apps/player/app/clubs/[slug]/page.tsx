@@ -6,7 +6,7 @@ import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import AppHeader from "../../components/AppHeader";
 import BottomNav from "../../components/BottomNav";
-import { ChevronLeft, ChevronRight, Clock, MapPin } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, MapPin, Users, Calendar, Info } from "lucide-react";
 
 interface Club {
     id: string;
@@ -36,6 +36,13 @@ interface Reservation {
     status?: string;
 }
 
+interface Player {
+    user_id: string;
+    display_name: string;
+    avatar_url: string;
+    username: string;
+}
+
 export default function ClubDetailPage({ params }: { params: Promise<{ slug: string }> }) {
     const router = useRouter();
     const [slug, setSlug] = useState<string>("");
@@ -53,6 +60,13 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
     const [booking, setBooking] = useState(false);
     const [selectedSlot, setSelectedSlot] = useState<{ court: Court, time: Date } | null>(null);
     const [selectingCourt, setSelectingCourt] = useState<{ time: Date, courts: Court[] } | null>(null);
+
+    // Social & Tabs
+    const [activeTab, setActiveTab] = useState<'availability' | 'players' | 'info'>('availability');
+    const [isFollower, setIsFollower] = useState(false);
+    const [checkingFollower, setCheckingFollower] = useState(false);
+    const [players, setPlayers] = useState<Player[]>([]);
+    const [loadingPlayers, setLoadingPlayers] = useState(false);
 
     // Cargar datos del club
     useEffect(() => {
@@ -107,6 +121,97 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
         };
     }, [slug]);
 
+    // Comprobar si el usuario sigue al club
+    useEffect(() => {
+        if (!club) return;
+
+        async function checkFollowStatus() {
+            setCheckingFollower(true);
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) {
+                    setCheckingFollower(false);
+                    return;
+                }
+
+                const { data, error } = await supabase
+                    .from('club_followers')
+                    .select('id')
+                    .eq('club_id', club.id)
+                    .eq('user_id', user.id)
+                    .maybeSingle();
+
+                if (error) {
+                    console.error('Error al comprobar seguimiento:', error);
+                } else {
+                    setIsFollower(!!data);
+                }
+            } catch (err) {
+                console.error('Error inesperado en checkFollowStatus:', err);
+            } finally {
+                setCheckingFollower(false);
+            }
+        }
+
+        checkFollowStatus();
+    }, [club]);
+
+    // Cargar jugadores (comunidad)
+    useEffect(() => {
+        if (!club || activeTab !== 'players') return;
+
+        async function loadPlayers() {
+            setLoadingPlayers(true);
+            const { data, error } = await supabase.rpc('get_club_community', {
+                p_club_id: club.id,
+                p_search: ''
+            });
+
+            if (data) {
+                setPlayers(data as Player[]);
+            }
+            setLoadingPlayers(false);
+        }
+
+        loadPlayers();
+    }, [club, activeTab]);
+
+    const handleToggleFollow = async () => {
+        if (!club) return;
+
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            router.push('/login');
+            return;
+        }
+
+        setCheckingFollower(true);
+        try {
+            if (isFollower) {
+                const { error } = await supabase
+                    .from('club_followers')
+                    .delete()
+                    .eq('club_id', club.id)
+                    .eq('user_id', user.id);
+
+                if (error) throw error;
+                setIsFollower(false);
+            } else {
+                const { error } = await supabase
+                    .from('club_followers')
+                    .insert({ club_id: club.id, user_id: user.id });
+
+                if (error) throw error;
+                setIsFollower(true);
+            }
+        } catch (error) {
+            console.error('Error al cambiar estado de seguimiento:', error);
+            alert('No se pudo actualizar el seguimiento. Verifica tu conexión.');
+        } finally {
+            setCheckingFollower(false);
+        }
+    };
+
     // Cargar disponibilidad
     useEffect(() => {
         if (!club) return;
@@ -122,16 +227,17 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
                 const endOfDay = new Date(selectedDate);
                 endOfDay.setHours(23, 59, 59, 999);
 
-                const { data, error } = await supabase
+                if (!club) return;
+                const { data, error: availabilityError } = await supabase
                     .from('reservations')
                     .select('id, start_time, end_time, court_id, status')
-                    .eq('club_id', clubId)
+                    .eq('club_id', club.id)
                     .gte('start_time', startOfDay.toISOString())
                     .lte('end_time', endOfDay.toISOString())
                     .neq('status', 'cancelled');
 
                 if (!isMounted) return;
-                if (error && error.message?.includes('AbortError')) return;
+                if (availabilityError && availabilityError.message?.includes('AbortError')) return;
 
                 setReservations(data || []);
             } catch (err) {
@@ -350,7 +456,7 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
                         <div className="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center text-3xl overflow-hidden border-2 border-green-500/30">
                             {club.logo_url ? <Image src={club.logo_url} alt={club.name} width={64} height={64} className="w-full h-full object-cover" /> : <span>🏟️</span>}
                         </div>
-                        <div>
+                        <div className="flex-1">
                             <h1 className="text-2xl font-bold text-white">{club.name}</h1>
                             {club.location && (
                                 <div className="flex items-center gap-1 text-gray-400 text-sm mt-1">
@@ -358,90 +464,214 @@ export default function ClubDetailPage({ params }: { params: Promise<{ slug: str
                                 </div>
                             )}
                         </div>
+                        <button
+                            onClick={handleToggleFollow}
+                            disabled={checkingFollower}
+                            className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${isFollower
+                                ? 'bg-gray-700 text-gray-400 border border-gray-600'
+                                : 'bg-green-600 text-white shadow-lg shadow-green-900/20'
+                                }`}
+                        >
+                            {checkingFollower ? '...' : isFollower ? 'Siguiendo' : 'Seguir Club'}
+                        </button>
+                    </div>
+
+                    {/* Tabs */}
+                    <div className="flex items-center gap-2 mt-8 overflow-x-auto pb-2 scrollbar-none">
+                        <button
+                            onClick={() => setActiveTab('availability')}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'availability' ? 'bg-green-600 text-white' : 'bg-gray-700/50 text-gray-400'
+                                }`}
+                        >
+                            <Calendar size={16} /> Disponibilidad
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('players')}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'players' ? 'bg-green-600 text-white' : 'bg-gray-700/50 text-gray-400'
+                                }`}
+                        >
+                            <Users size={16} /> Jugadores
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('info')}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'info' ? 'bg-green-600 text-white' : 'bg-gray-700/50 text-gray-400'
+                                }`}
+                        >
+                            <Info size={16} /> Información
+                        </button>
                     </div>
                 </div>
             </div>
 
             <div className="max-w-md mx-auto px-4 mt-6">
-                {/* Selector Fecha */}
-                <div className="flex items-center justify-between bg-gray-800 p-4 rounded-xl border border-gray-700 mb-6">
-                    <button
-                        onClick={() => changeDate(-1)}
-                        disabled={isDateTodayOrPast()}
-                        className={`p-2 rounded-lg ${isDateTodayOrPast() ? 'text-gray-600 cursor-not-allowed' : 'hover:bg-gray-700 text-gray-400'}`}
-                    >
-                        <ChevronLeft size={20} />
-                    </button>
-                    <div className="text-center">
-                        <h2 className="text-white font-semibold capitalize">
-                            {selectedDate.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
-                        </h2>
-                        <p className="text-xs text-gray-500 flex items-center justify-center gap-1 mt-1">
-                            <Clock size={10} /> Duración: {club.booking_duration} min
-                        </p>
-                    </div>
-                    <button onClick={() => changeDate(1)} className="p-2 hover:bg-gray-700 rounded-lg">
-                        <ChevronRight className="text-gray-400" />
-                    </button>
-                </div>
+                {activeTab === 'availability' && (
+                    <>
+                        {/* Selector Fecha */}
+                        <div className="flex items-center justify-between bg-gray-800 p-4 rounded-xl border border-gray-700 mb-6">
+                            <button
+                                onClick={() => changeDate(-1)}
+                                disabled={isDateTodayOrPast()}
+                                className={`p-2 rounded-lg ${isDateTodayOrPast() ? 'text-gray-600 cursor-not-allowed' : 'hover:bg-gray-700 text-gray-400'}`}
+                            >
+                                <ChevronLeft size={20} />
+                            </button>
+                            <div className="text-center">
+                                <h2 className="text-white font-semibold capitalize">
+                                    {selectedDate.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+                                </h2>
+                                <p className="text-xs text-gray-500 flex items-center justify-center gap-1 mt-1">
+                                    <Clock size={10} /> Duración: {club.booking_duration} min
+                                </p>
+                            </div>
+                            <button onClick={() => changeDate(1)} className="p-2 hover:bg-gray-700 rounded-lg">
+                                <ChevronRight className="text-gray-400" />
+                            </button>
+                        </div>
 
-                {/* Lista de Horarios */}
-                <div className="space-y-3">
-                    <h3 className="text-white font-semibold mb-4">Horarios Disponibles</h3>
+                        {/* Lista de Horarios */}
+                        <div className="space-y-3">
+                            <h3 className="text-white font-semibold mb-4">Horarios Disponibles</h3>
 
-                    <div className="grid grid-cols-1 gap-3">
-                        {timeSlots.map((slot, i) => {
-                            const freeCourts = checkAvailability(slot);
-                            const isFull = freeCourts.length === 0;
-                            const timeStr = slot.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+                            <div className="grid grid-cols-1 gap-3">
+                                {timeSlots.map((slot, i) => {
+                                    const freeCourts = checkAvailability(slot);
+                                    const isFull = freeCourts.length === 0;
+                                    const timeStr = slot.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 
-                            const today = new Date();
-                            const isToday = selectedDate.toDateString() === today.toDateString();
-                            const isPast = isToday && slot.getTime() < today.getTime();
+                                    const today = new Date();
+                                    const isToday = selectedDate.toDateString() === today.toDateString();
+                                    const isPast = isToday && slot.getTime() < today.getTime();
 
-                            if (isPast) return null;
+                                    if (isPast) return null;
 
-                            return (
-                                <div key={i} className={`bg-gray-800 rounded-xl p-4 border border-gray-700 flex justify-between items-center ${isFull ? 'opacity-50' : ''}`}>
-                                    <div className="flex items-center gap-4">
-                                        <div className="bg-gray-900 px-3 py-2 rounded-lg text-white font-mono font-bold border border-gray-700">
-                                            {timeStr}
-                                        </div>
-                                        <div>
-                                            <p className={`text-sm font-semibold ${isFull ? 'text-red-400' : 'text-green-400'}`}>
-                                                {isFull ? 'Completo' : 'Disponible'}
-                                            </p>
+                                    return (
+                                        <div key={i} className={`bg-gray-800 rounded-xl p-4 border border-gray-700 flex justify-between items-center ${isFull ? 'opacity-50' : ''}`}>
+                                            <div className="flex items-center gap-4">
+                                                <div className="bg-gray-900 px-3 py-2 rounded-lg text-white font-mono font-bold border border-gray-700">
+                                                    {timeStr}
+                                                </div>
+                                                <div>
+                                                    <p className={`text-sm font-semibold ${isFull ? 'text-red-400' : 'text-green-400'}`}>
+                                                        {isFull ? 'Completo' : 'Disponible'}
+                                                    </p>
+                                                    {!isFull && (
+                                                        <p className="text-xs text-gray-500">
+                                                            {freeCourts.length} pista{freeCourts.length > 1 ? 's' : ''} libre{freeCourts.length > 1 ? 's' : ''}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+
                                             {!isFull && (
-                                                <p className="text-xs text-gray-500">
-                                                    {freeCourts.length} pista{freeCourts.length > 1 ? 's' : ''} libre{freeCourts.length > 1 ? 's' : ''}
-                                                </p>
+                                                <button
+                                                    onClick={() => {
+                                                        if (freeCourts.length === 1) {
+                                                            setSelectedSlot({ court: freeCourts[0], time: slot });
+                                                        } else {
+                                                            setSelectingCourt({ time: slot, courts: freeCourts });
+                                                        }
+                                                    }}
+                                                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition"
+                                                >
+                                                    Reservar
+                                                </button>
                                             )}
                                         </div>
-                                    </div>
+                                    );
+                                })}
 
-                                    {!isFull && (
-                                        <button
-                                            onClick={() => {
-                                                if (freeCourts.length === 1) {
-                                                    setSelectedSlot({ court: freeCourts[0], time: slot });
-                                                } else {
-                                                    setSelectingCourt({ time: slot, courts: freeCourts });
-                                                }
-                                            }}
-                                            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition"
-                                        >
-                                            Reservar
+                                {timeSlots.length === 0 && (
+                                    <p className="text-center text-gray-500 py-4">No hay horarios disponibles.</p>
+                                )}
+                            </div>
+                        </div>
+                    </>
+                )}
+
+                {activeTab === 'players' && (
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-white font-bold text-lg">Comunidad del Club</h3>
+                            <span className="bg-gray-800 text-gray-400 px-3 py-1 rounded-lg text-xs font-bold">
+                                {players.length} Jugadores
+                            </span>
+                        </div>
+
+                        {loadingPlayers ? (
+                            <div className="flex flex-col items-center py-12 gap-3">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
+                                <p className="text-xs text-gray-500 uppercase font-bold tracking-widest">Buscando equipo...</p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-2 gap-3">
+                                {players.map((player) => (
+                                    <div key={player.user_id} className="bg-gray-800 border border-gray-700 rounded-2xl p-4 flex flex-col items-center gap-3 group hover:border-green-500/50 transition-all">
+                                        <div className="relative">
+                                            <div className="w-14 h-14 rounded-2xl bg-gray-700 overflow-hidden border border-gray-600 group-hover:scale-105 transition-transform">
+                                                {player.avatar_url ? (
+                                                    <Image src={player.avatar_url} alt={player.display_name} fill className="object-cover" />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center text-white font-black text-xl">
+                                                        {player.display_name?.charAt(0).toUpperCase()}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-gray-800 rounded-full" />
+                                        </div>
+                                        <div className="text-center">
+                                            <p className="text-sm font-bold text-white uppercase italic tracking-tight leading-none">
+                                                {player.display_name}
+                                            </p>
+                                            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">
+                                                @{player.username || 'jugador'}
+                                            </p>
+                                        </div>
+                                        <button className="w-full bg-gray-900 hover:bg-gray-750 text-[10px] text-gray-400 hover:text-white font-black uppercase py-2 rounded-xl border border-gray-700 transition-all">
+                                            Ver Perfil
                                         </button>
-                                    )}
-                                </div>
-                            );
-                        })}
+                                    </div>
+                                ))}
 
-                        {timeSlots.length === 0 && (
-                            <p className="text-center text-gray-500 py-4">No hay horarios disponibles.</p>
+                                {players.length === 0 && (
+                                    <div className="col-span-2 py-12 text-center bg-gray-800/50 rounded-3xl border border-gray-700/50">
+                                        <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-600">
+                                            <Users size={32} />
+                                        </div>
+                                        <p className="text-sm font-bold text-gray-500 uppercase italic tracking-widest">
+                                            Sé el primero en unirte
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
                         )}
                     </div>
-                </div>
+                )}
+
+                {activeTab === 'info' && (
+                    <div className="space-y-6">
+                        <div className="bg-gray-800 p-6 rounded-3xl border border-gray-700">
+                            <h3 className="text-white font-bold mb-4 flex items-center gap-2">
+                                <Clock size={18} className="text-green-500" /> Horarios de Apertura
+                            </h3>
+                            <div className="space-y-2">
+                                {[
+                                    { d: 'Lunes', h: `${club.opening_hour}:00 - ${club.closing_hour}:00` },
+                                    { d: 'Martes', h: `${club.opening_hour}:00 - ${club.closing_hour}:00` },
+                                    { d: 'Miércoles', h: `${club.opening_hour}:00 - ${club.closing_hour}:00` },
+                                    { d: 'Jueves', h: `${club.opening_hour}:00 - ${club.closing_hour}:00` },
+                                    { d: 'Viernes', h: `${club.opening_hour}:00 - ${club.closing_hour}:00` },
+                                    { d: 'Sábado', h: `${club.opening_hour}:00 - ${club.closing_hour}:00` },
+                                    { d: 'Domingo', h: `${club.opening_hour}:00 - ${club.closing_hour}:00` },
+                                ].map((row, i) => (
+                                    <div key={i} className="flex justify-between items-center py-2 border-b border-gray-700/50 last:border-0">
+                                        <span className="text-gray-400 text-sm">{row.d}</span>
+                                        <span className="text-white text-sm font-medium">{row.h}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {selectingCourt && (

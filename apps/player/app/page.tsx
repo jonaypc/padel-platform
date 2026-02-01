@@ -12,7 +12,7 @@ export default function Home() {
       const { data: sessionData } = await supabase.auth.getSession();
 
       if (sessionData.session) {
-        router.replace("/app");
+        router.replace("/dashboard");
       } else {
         router.replace("/login");
       }

@@ -162,7 +162,7 @@ export function CreateReservationModal({
         const reservationData: CreateReservationData = {
             courtId: slot.court.id,
             startTime: slot.time,
-            type: (activeTab === 'maintenance' ? 'maintenance' : 'match') as ReservationType,
+            type: (activeTab === 'maintenance' ? 'maintenance' : 'booking') as ReservationType,
             price: activeTab === 'maintenance' ? 0 : price,
             notes: notes,
             items: items,

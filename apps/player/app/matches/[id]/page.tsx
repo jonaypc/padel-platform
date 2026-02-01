@@ -30,11 +30,13 @@ type MatchRow = {
   mental_feeling: number | null;
 
   notes: string | null;
+  status: string;
 };
 
 type Participant = {
   user_id: string;
   status: "pending" | "confirmed" | "rejected";
+  elo_change?: number | null;
   created_at?: string;
 };
 
@@ -188,9 +190,8 @@ export default function MatchDetailPage() {
     const link = `${baseUrl}/share/${row.id}`;
 
     const partner = row.partner_name || "—";
-    const rivals = `${row.opponent1_name || "—"}${
-      row.opponent2_name ? ` / ${row.opponent2_name}` : ""
-    }`;
+    const rivals = `${row.opponent1_name || "—"}${row.opponent2_name ? ` / ${row.opponent2_name}` : ""
+      }`;
 
     return [
       "🎾 Partido de pádel",
@@ -224,7 +225,7 @@ export default function MatchDetailPage() {
     setParticipantsLoading(true);
     const { data, error } = await supabase
       .from("match_participants")
-      .select("user_id, status, created_at")
+      .select("user_id, status, elo_change, created_at")
       .eq("match_id", matchId)
       .order("created_at", { ascending: true });
 
@@ -272,9 +273,11 @@ export default function MatchDetailPage() {
 
       const { data, error } = await supabase
         .from("matches")
-        .select(
-          "id, played_at, match_type, location, partner_name, opponent1_name, opponent2_name, set1_us, set1_them, set2_us, set2_them, set3_us, set3_them, overall_feeling, physical_feeling, mental_feeling, notes"
-        )
+        .select(`
+          id, played_at, match_type, location, partner_name, opponent1_name, opponent2_name, 
+          set1_us, set1_them, set2_us, set2_them, set3_us, set3_them, 
+          overall_feeling, physical_feeling, mental_feeling, notes, status
+        `)
         .eq("id", id)
         .single();
 
@@ -470,11 +473,18 @@ export default function MatchDetailPage() {
                         ) : null}
                       </div>
 
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs ${statusPillClass(p.status)}`}
-                      >
-                        {statusLabel(p.status)}
-                      </span>
+                      <div className="flex items-center gap-3">
+                        {p.elo_change !== null && p.elo_change !== undefined && (
+                          <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg ${p.elo_change >= 0 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                            {p.elo_change >= 0 ? '+' : ''}{p.elo_change} ELO
+                          </span>
+                        )}
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs ${statusPillClass(p.status)}`}
+                        >
+                          {statusLabel(p.status)}
+                        </span>
+                      </div>
                     </div>
                   ))
                 )}
@@ -513,10 +523,14 @@ export default function MatchDetailPage() {
               <div>Set 3: {scoreLine(row.set3_us, row.set3_them)}</div>
             </div>
 
-            {pending && (
-              <p className="mt-3 text-xs text-gray-300">
-                ℹ️ Este partido está pendiente porque aún no tiene marcador. En cuanto añadas sets, pasará a
-                “Jugado”.
+            {row.status === 'confirmed' ? (
+              <p className="mt-3 text-xs text-green-400 flex items-center gap-2 font-bold italic">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                ESTE RESULTADO ES OFICIAL Y HA AFECTADO AL RANKING
+              </p>
+            ) : (
+              <p className="mt-3 text-xs text-gray-400">
+                ℹ️ Este partido está pendiente de confirmación oficial por el club para impactar en el ranking.
               </p>
             )}
           </div>

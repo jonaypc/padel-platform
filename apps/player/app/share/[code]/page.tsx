@@ -276,7 +276,7 @@ export default function ShareMatchPage() {
         </div>
         <div className="max-w-md mx-auto mt-4">
           <button
-            onClick={() => router.push("/app")}
+            onClick={() => router.push("/dashboard")}
             className="text-sm text-gray-400 hover:text-green-500 transition"
           >
             ← Volver
@@ -375,19 +375,18 @@ export default function ShareMatchPage() {
                 <button
                   onClick={handleJoin}
                   disabled={joinLoading || isFull}
-                  className={`w-full rounded-xl py-3 font-medium transition ${
-                    joinLoading || isFull
-                      ? "bg-gray-700 text-gray-400 cursor-not-allowed"
-                      : "bg-green-600 text-white hover:bg-green-700"
-                  }`}
+                  className={`w-full rounded-xl py-3 font-medium transition ${joinLoading || isFull
+                    ? "bg-gray-700 text-gray-400 cursor-not-allowed"
+                    : "bg-green-600 text-white hover:bg-green-700"
+                    }`}
                 >
                   {isFull
                     ? "Partido completo"
                     : joinLoading
-                    ? "Uniéndote..."
-                    : userId
-                    ? `Unirme al partido (auto)`
-                    : "Inicia sesión para unirte"}
+                      ? "Uniéndote..."
+                      : userId
+                        ? `Unirme al partido (auto)`
+                        : "Inicia sesión para unirte"}
                 </button>
 
                 {userId && !isFull && autoTeam && (
@@ -399,7 +398,7 @@ export default function ShareMatchPage() {
             )}
 
             <button
-              onClick={() => router.push("/app")}
+              onClick={() => router.push("/dashboard")}
               className="w-full rounded-xl border border-gray-700 bg-gray-800 text-gray-300 py-3 font-medium hover:bg-gray-750 transition"
             >
               Volver al inicio
