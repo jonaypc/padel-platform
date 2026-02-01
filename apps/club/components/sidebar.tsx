@@ -29,10 +29,13 @@ export function Sidebar() {
     return (
         <div className="w-64 bg-gray-900 border-r border-gray-800 flex flex-col h-screen sticky top-0">
             <div className="p-8">
-                <h1 className="text-2xl font-black tracking-tighter text-white flex items-center gap-2 uppercase">
-                    <span className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center text-white">P</span>
-                    Club<span className="text-green-500">Pro</span>
-                </h1>
+                <Link href="/dashboard" className="flex items-center gap-3 group">
+                    <img
+                        src="/logo-mi-padel.png"
+                        alt="mi PADEL"
+                        className="h-10 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
+                    />
+                </Link>
             </div>
 
             <nav className="flex-1 px-4 space-y-1">

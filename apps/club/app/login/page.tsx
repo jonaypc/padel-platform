@@ -165,8 +165,14 @@ export default function LoginPage() {
             <div className="w-full max-w-md">
                 {/* Logo */}
                 <div className="text-center mb-8">
-                    <h1 className="text-3xl font-bold text-white">🎾 PÁDEL</h1>
-                    <p className="text-gray-400 mt-2">Panel de Club</p>
+                    <div className="flex justify-center mb-4">
+                        <img
+                            src="/logo-mi-padel.png"
+                            alt="mi PADEL"
+                            className="h-16 w-auto object-contain"
+                        />
+                    </div>
+                    <p className="text-gray-400 mt-2 font-medium tracking-wide uppercase text-xs">Panel de Club</p>
                 </div>
 
                 {/* Card */}

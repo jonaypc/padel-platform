@@ -48,8 +48,8 @@ export function ReservationSlot({
                 onClick={() => onClickReservation(reservation)}
                 className={`w-full h-full rounded-lg flex flex-col items-center justify-center text-[10px] leading-tight font-bold cursor-pointer transition p-1.5 text-center z-10 relative group ring-1 ring-white/5
                     ${isMaintenance
-                        ? 'bg-gradient-to-br from-red-900/90 to-red-950 text-red-400 border border-red-700/50 hover:border-red-500/50 hover:from-red-800'
-                        : 'bg-gradient-to-br from-green-900/90 to-green-950 text-green-400 border border-green-700/50 hover:border-green-500/50 hover:from-green-800'
+                        ? 'bg-linear-to-br from-red-900/90 to-red-950 text-red-400 border border-red-700/50 hover:border-red-500/50 hover:from-red-800'
+                        : 'bg-linear-to-br from-green-900/90 to-green-950 text-green-400 border border-green-700/50 hover:border-green-500/50 hover:from-green-800'
                     }
                     ${getWarningClass(reservation)}
                 `}

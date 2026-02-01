@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { createBrowserClient } from "@padel/supabase";
 import { Match } from "@padel/core";
-import { Calendar, MapPin, CheckCircle, Clock } from "lucide-react";
+import { Calendar, MapPin, CheckCircle, Clock, Trophy, Filter, ChevronRight, LayoutGrid, Info } from "lucide-react";
 import MatchResultModal from "../../../components/matches/MatchResultModal";
 
 export default function PartidosPage() {
@@ -23,7 +23,6 @@ export default function PartidosPage() {
             return;
         }
 
-        // 1. Obtener ID del club del usuario
         const { data: members } = await supabase
             .from('club_members')
             .select('club_id')
@@ -37,7 +36,6 @@ export default function PartidosPage() {
 
         const clubId = members[0].club_id;
 
-        // 2. Obtener Partidos del Club
         let query = supabase
             .from('matches')
             .select('*')
@@ -65,127 +63,181 @@ export default function PartidosPage() {
     const getStatusBadge = (status: string) => {
         switch (status) {
             case 'confirmed':
-                return <span className="flex items-center gap-1 text-xs font-bold text-green-400 bg-green-900/30 px-2 py-1 rounded-full border border-green-800"><CheckCircle size={12} /> CONFIRMADO</span>;
+                return (
+                    <div className="flex items-center gap-1.5 text-[10px] font-black tracking-widest uppercase text-green-400 bg-green-500/10 px-3 py-1.5 rounded-lg border border-green-500/20 shadow-[0_0_15px_rgba(34,197,94,0.1)]">
+                        <CheckCircle size={12} className="text-green-500" />
+                        <span>Confirmado</span>
+                    </div>
+                );
             case 'pending_confirmation':
-                return <span className="flex items-center gap-1 text-xs font-bold text-yellow-400 bg-yellow-900/30 px-2 py-1 rounded-full border border-yellow-800"><Clock size={12} /> PENDIENTE</span>;
+                return (
+                    <div className="flex items-center gap-1.5 text-[10px] font-black tracking-widest uppercase text-yellow-400 bg-yellow-500/10 px-3 py-1.5 rounded-lg border border-yellow-500/20 shadow-[0_0_15px_rgba(234,179,8,0.1)]">
+                        <Clock size={12} className="text-yellow-500" />
+                        <span>Pendiente</span>
+                    </div>
+                );
             default:
-                return <span className="flex items-center gap-1 text-xs font-bold text-gray-400 bg-gray-800 px-2 py-1 rounded-full border border-gray-700">BORRADOR</span>;
+                return (
+                    <div className="flex items-center gap-1.5 text-[10px] font-black tracking-widest uppercase text-gray-400 bg-white/5 px-3 py-1.5 rounded-lg border border-white/10">
+                        <Info size={12} />
+                        <span>Borrador</span>
+                    </div>
+                );
         }
     };
 
     if (loading && matches.length === 0) {
-        return <div className="flex justify-center p-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div></div>;
+        return (
+            <div className="flex flex-col items-center justify-center p-24 space-y-4">
+                <div className="relative">
+                    <div className="w-12 h-12 border-4 border-green-500/20 border-t-green-500 rounded-full animate-spin" />
+                    <Trophy size={20} className="absolute inset-0 m-auto text-green-500/40" />
+                </div>
+                <p className="text-gray-400 font-medium animate-pulse italic">Sincronizando partidos...</p>
+            </div>
+        );
     }
 
     return (
-        <div className="space-y-6 text-white pb-24">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold">Gestión de Partidos</h1>
-                    <p className="text-gray-400 text-sm">Validar resultados y gestionar competición</p>
-                </div>
+        <div className="max-w-6xl mx-auto space-y-8 pb-32 text-white px-4 md:px-0">
 
-                <div className="flex bg-gray-800 p-1 rounded-xl border border-gray-700 self-start">
-                    <button
-                        onClick={() => setFilter('all')}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition ${filter === 'all' ? 'bg-gray-700 text-white shadow' : 'text-gray-400 hover:text-white'}`}
-                    >
-                        Todos
-                    </button>
-                    <button
-                        onClick={() => setFilter('pending')}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition ${filter === 'pending' ? 'bg-yellow-900/40 text-yellow-400 shadow' : 'text-gray-400 hover:text-white'}`}
-                    >
-                        Pendientes
-                    </button>
-                    <button
-                        onClick={() => setFilter('confirmed')}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition ${filter === 'confirmed' ? 'bg-green-900/40 text-green-400 shadow' : 'text-gray-400 hover:text-white'}`}
-                    >
-                        Confirmados
-                    </button>
+            {/* Header Premium */}
+            <div className="relative group">
+                <div className="absolute -inset-1 bg-gradient-to-r from-yellow-500/20 to-green-500/20 rounded-3xl blur opacity-25 group-hover:opacity-40 transition duration-1000"></div>
+                <div className="relative bg-gray-900/40 backdrop-blur-2xl border border-white/10 p-8 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-8 shadow-2xl">
+                    <div className="space-y-3">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-yellow-500/10 flex items-center justify-center border border-yellow-500/20 shadow-[0_0_20px_rgba(234,179,8,0.1)]">
+                                <Trophy size={28} className="text-yellow-400" />
+                            </div>
+                            <h1 className="text-4xl font-black bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-gray-500 tracking-tighter italic">
+                                GESTIÓN DE PARTIDOS
+                            </h1>
+                        </div>
+                        <p className="text-gray-400 text-sm md:text-base font-medium pl-1 flex items-center gap-2">
+                            Valida resultados oficiales y mantén el Ranking ELO actualizado
+                        </p>
+                    </div>
+
+                    {/* Filtros Estilo Tab */}
+                    <div className="flex bg-black/40 p-1.5 rounded-2xl border border-white/5 self-start md:self-center shadow-inner">
+                        <button
+                            onClick={() => setFilter('all')}
+                            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300 ${filter === 'all' ? 'bg-white/10 text-white shadow-lg ring-1 ring-white/20' : 'text-gray-500 hover:text-gray-300'}`}
+                        >
+                            <LayoutGrid size={14} />
+                            <span>Todos</span>
+                        </button>
+                        <button
+                            onClick={() => setFilter('pending')}
+                            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300 ${filter === 'pending' ? 'bg-yellow-500/20 text-yellow-400 shadow-lg ring-1 ring-yellow-500/30' : 'text-gray-500 hover:text-yellow-400/60'}`}
+                        >
+                            <Clock size={14} />
+                            <span>Pendientes</span>
+                        </button>
+                        <button
+                            onClick={() => setFilter('confirmed')}
+                            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300 ${filter === 'confirmed' ? 'bg-green-500/20 text-green-400 shadow-lg ring-1 ring-green-500/30' : 'text-gray-500 hover:text-green-400/60'}`}
+                        >
+                            <CheckCircle size={14} />
+                            <span>Oficiales</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            {matches.length === 0 ? (
-                <div className="bg-gray-800 border border-gray-700 rounded-xl p-12 text-center">
-                    <div className="inline-flex p-4 rounded-full bg-gray-900 mb-4 text-gray-500">
-                        <Calendar size={32} />
-                    </div>
-                    <h3 className="text-lg font-medium text-white mb-2">No hay partidos encontrados</h3>
-                    <p className="text-gray-400 text-sm">No se han encontrado partidos con los filtros actuales.</p>
-                </div>
-            ) : (
-                <div className="grid gap-4">
-                    {matches.map(match => (
-                        <div
-                            key={match.id}
-                            onClick={() => setSelectedMatch(match)}
-                            className="bg-gray-800 border border-gray-700 rounded-xl p-4 hover:bg-gray-750 transition cursor-pointer group hover:border-gray-600"
-                        >
-                            <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+            {/* Listado de Partidos */}
+            <div className="grid gap-6">
+                {matches.map(match => (
+                    <div
+                        key={match.id}
+                        onClick={() => setSelectedMatch(match)}
+                        className="group relative"
+                    >
+                        <div className="absolute -inset-0.5 bg-gradient-to-r from-green-500/10 to-blue-500/10 rounded-[2rem] opacity-0 group-hover:opacity-100 transition duration-500"></div>
+                        <div className="relative bg-gray-900/60 backdrop-blur-xl border border-white/5 rounded-[2rem] p-6 pr-8 flex flex-col lg:flex-row items-center gap-8 cursor-pointer transition-all duration-300 group-hover:border-white/20 group-hover:-translate-y-1 shadow-xl">
 
-                                {/* Info Hora y Fecha */}
-                                <div className="flex items-center gap-4 min-w-[200px]">
-                                    <div className="bg-gray-900 p-3 rounded-lg text-center min-w-[60px] border border-gray-700">
-                                        <div className="text-xs text-gray-500 font-bold uppercase">
-                                            {new Date(match.played_at).toLocaleDateString([], { month: 'short' })}
-                                        </div>
-                                        <div className="text-xl font-bold text-white leading-none mt-1">
-                                            {new Date(match.played_at).getDate()}
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div className="flex items-center gap-2 text-white font-medium">
-                                            <Clock size={14} className="text-green-500" />
-                                            {new Date(match.played_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                        </div>
-                                        <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                                            <MapPin size={12} />
-                                            {match.location || 'Pista sin asignar'}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Jugadores y Resultado */}
-                                <div className="flex-1 w-full md:w-auto">
-                                    <div className="flex items-center justify-between bg-gray-900/50 p-3 rounded-lg border border-gray-700/50">
-                                        <div className="flex flex-col items-start w-[40%]">
-                                            <span className="text-xs text-gray-500 font-bold uppercase mb-1">Local</span>
-                                            <span className="text-sm font-medium text-white line-clamp-1">{match.partner_name || "Sin nombre"}</span>
-                                        </div>
-
-                                        <div className="font-mono font-bold text-lg text-white px-4">
-                                            {match.status === 'confirmed' || (match.set1_us !== null) ? (
-                                                <div className="flex gap-2">
-                                                    <span>{match.set1_us ?? '-'}-{match.set1_them ?? '-'}</span>
-                                                    {match.set2_us !== null && <span className="text-gray-500">/</span>}
-                                                    {match.set2_us !== null && <span>{match.set2_us ?? '-'}-{match.set2_them ?? '-'}</span>}
-                                                    {match.set3_us !== null && <span className="text-gray-500">/</span>}
-                                                    {match.set3_us !== null && <span>{match.set3_us ?? '-'}-{match.set3_them ?? '-'}</span>}
-                                                </div>
-                                            ) : (
-                                                <span className="text-gray-600 text-sm">VS</span>
-                                            )}
-                                        </div>
-
-                                        <div className="flex flex-col items-end w-[40%]">
-                                            <span className="text-xs text-gray-500 font-bold uppercase mb-1">Visitante</span>
-                                            <span className="text-sm font-medium text-white line-clamp-1 text-right">{match.opponent1_name || "Sin nombre"}</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Estado */}
-                                <div className="flex md:flex-col items-center gap-3 md:items-end min-w-[120px]">
-                                    {getStatusBadge(match.status)}
-                                    <span className="text-xs text-blue-400 font-medium group-hover:underline">
-                                        Editar Resultado →
-                                    </span>
+                            {/* Fecha y Hora Lateral */}
+                            <div className="flex lg:flex-col items-center justify-center gap-3 lg:gap-1 min-w-[100px] py-2 border-r lg:border-r-0 lg:border-b border-white/5 px-4">
+                                <span className="text-xs font-black text-green-500/80 uppercase tracking-[0.2em]">
+                                    {new Date(match.played_at).toLocaleDateString([], { month: 'short' })}
+                                </span>
+                                <span className="text-3xl font-black text-white italic leading-none">
+                                    {new Date(match.played_at).getDate()}
+                                </span>
+                                <div className="flex items-center gap-1.5 text-gray-500 text-[10px] font-bold mt-1">
+                                    <Clock size={12} />
+                                    {new Date(match.played_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                 </div>
                             </div>
+
+                            {/* Marcador Central */}
+                            <div className="flex-1 w-full">
+                                <div className="flex items-center justify-between gap-4 md:gap-12">
+                                    {/* Local */}
+                                    <div className="flex-1 flex flex-col items-end text-right">
+                                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 italic">Equipo A</span>
+                                        <h4 className="text-lg font-bold text-white leading-tight group-hover:text-green-400 transition-colors">
+                                            {match.partner_name || "Sin asignar"}
+                                        </h4>
+                                    </div>
+
+                                    {/* Score Display */}
+                                    <div className="flex flex-col items-center gap-2">
+                                        <div className="bg-black/60 px-6 py-4 rounded-3xl border border-white/10 shadow-2xl flex items-center gap-5 min-w-[140px] justify-center relative overflow-hidden group-hover:border-green-500/30 transition-all">
+                                            {match.status === 'confirmed' || (match.set1_us !== null) ? (
+                                                <div className="flex items-center gap-4 font-black italic text-2xl tracking-tighter">
+                                                    <span className="text-white">{match.set1_us ?? 0}-{match.set1_them ?? 0}</span>
+                                                    {match.set2_us !== null && <span className="text-gray-700 font-normal leading-none">/</span>}
+                                                    {match.set2_us !== null && <span className="text-gray-400 text-xl">{match.set2_us}-{match.set2_them}</span>}
+                                                    {match.set3_us !== null && <span className="text-gray-700 font-normal leading-none">/</span>}
+                                                    {match.set3_us !== null && <span className="text-gray-500 text-lg">{match.set3_us}-{match.set3_them}</span>}
+                                                </div>
+                                            ) : (
+                                                <div className="text-gray-600 font-black italic text-xl tracking-[0.3em]">VS</div>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center gap-1.5 text-gray-500 text-[10px] uppercase font-bold tracking-widest">
+                                            <MapPin size={10} className="text-green-500" />
+                                            {match.location || "Pista Principal"}
+                                        </div>
+                                    </div>
+
+                                    {/* Visitante */}
+                                    <div className="flex-1 flex flex-col items-start text-left">
+                                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 italic">Equipo B</span>
+                                        <h4 className="text-lg font-bold text-white leading-tight group-hover:text-red-400 transition-colors">
+                                            {match.opponent1_name || "Rival pend."}
+                                        </h4>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Estado y Acción */}
+                            <div className="flex flex-row lg:flex-col items-center md:items-end justify-between lg:justify-center gap-4 min-w-[160px] pl-4 lg:pl-0 border-l lg:border-l-0 border-white/5">
+                                {getStatusBadge(match.status)}
+                                <button className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all text-blue-400 hover:text-white border border-transparent hover:border-blue-500/30">
+                                    Gestionar
+                                    <ChevronRight size={14} />
+                                </button>
+                            </div>
                         </div>
-                    ))}
+                    </div>
+                ))}
+            </div>
+
+            {matches.length === 0 && !loading && (
+                <div className="text-center py-24 px-8 bg-gray-900/40 backdrop-blur-sm rounded-[3rem] border border-dashed border-white/10 space-y-6">
+                    <div className="w-20 h-20 bg-gray-800 rounded-3xl flex items-center justify-center mx-auto mb-4 border border-white/5 shadow-2xl rotate-3">
+                        <Calendar size={40} className="text-gray-600" />
+                    </div>
+                    <div className="space-y-2">
+                        <h3 className="text-2xl font-black text-white italic uppercase tracking-tight">Cero Resultados</h3>
+                        <p className="text-gray-500 max-w-sm mx-auto font-medium">
+                            Aún no hay registros de partidos en tu club para este filtro.
+                            Los partidos aparecerán aquí una vez que los jugadores finalicen sus reservas.
+                        </p>
+                    </div>
                 </div>
             )}
 

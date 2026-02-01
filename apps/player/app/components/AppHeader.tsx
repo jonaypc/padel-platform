@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 
 export default function AppHeader() {
@@ -33,39 +34,43 @@ export default function AppHeader() {
   const handleLogout = useCallback(async () => {
     await supabase.auth.signOut();
     window.location.href = "/login";
-  }, [supabase]);
+  }, []);
 
   return (
-    <header className="bg-gray-900 border-b border-gray-800 sticky top-0 z-40">
+    <header className="bg-gray-900/80 backdrop-blur-md border-b border-gray-800 sticky top-0 z-40">
       <div className="max-w-md mx-auto px-4 py-3">
-        <div className="flex items-center justify-between mb-3">
-          {/* Perfil y nombre */}
-          <div className="flex items-center gap-3">
-            <Link href="/profile">
-              <div className="w-10 h-10 rounded-full bg-green-600 flex items-center justify-center text-white font-semibold cursor-pointer">
-                {userName ? userName.charAt(0).toUpperCase() : "U"}
-              </div>
-            </Link>
-            <div>
-              <p className="text-sm font-semibold text-white">{userName || "Usuario"}</p>
-              <p className="text-xs text-gray-400">Activo</p>
-            </div>
-          </div>
+        <div className="flex items-center justify-between">
+          {/* Logo */}
+          <Link href="/dashboard" className="flex items-center gap-2 group">
+            <Image
+              src="/logo-mi-padel.png"
+              alt="mi PADEL"
+              width={140} // Added width
+              height={28} // Added height
+              className="h-7 w-auto object-contain transition-transform group-hover:scale-105"
+            />
+          </Link>
 
-          {/* Acciones derecha */}
-          <div className="flex items-center gap-4">
+          {/* Acciones derecha (Perfil + Notificaciones) */}
+          <div className="flex items-center gap-3">
             {/* Notificaciones */}
             <Link href="/notifications" className="relative p-2 text-gray-400 hover:text-white transition">
-              <span className="text-xl">🔔</span>
+              <span className="text-lg">🔔</span>
               {unreadCount > 0 && (
-                <div className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-gray-900"></div>
+                <div className="absolute top-1 right-1 w-2 h-2 bg-green-500 rounded-full border border-gray-900 animate-pulse"></div>
               )}
             </Link>
 
-            {/* Botón de cerrar sesión */}
+            {/* Perfil */}
+            <Link href="/profile">
+              <div className="w-9 h-9 rounded-full bg-linear-to-br from-green-500 to-green-700 flex items-center justify-center text-white font-black text-xs cursor-pointer shadow-lg shadow-green-900/20 ring-2 ring-white/10 hover:ring-green-500/50 transition-all">
+                {userName ? userName.charAt(0).toUpperCase() : "U"}
+              </div>
+            </Link>
+
             <button
               onClick={handleLogout}
-              className="text-xs text-gray-400 hover:text-gray-300"
+              className="text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-red-400 transition-colors ml-1"
             >
               Salir
             </button>

@@ -69,7 +69,7 @@ export function ReservationGrid({
                     return (
                         <div
                             key={slotMs}
-                            className="flex border-b border-gray-800/80 last:border-b-0 h-24 hover:bg-white/[0.02] transition-colors"
+                            className="flex border-b border-gray-800/80 last:border-b-0 h-24 hover:bg-white/2 transition-colors"
                         >
                             {/* Hora sticky */}
                             <div className="w-16 shrink-0 p-3 text-[10px] font-black text-gray-500 border-r border-gray-700 bg-gray-950 sticky left-0 z-10 flex flex-col justify-start shadow-2xl">

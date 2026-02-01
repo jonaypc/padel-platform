@@ -8,6 +8,7 @@ export interface ReservationPlayer {
     name: string;
     paid: boolean;
     amount: number;
+    confirmed?: boolean; // Nuevo campo para asistencia
     courtPrice?: number;
     id?: string;
     email?: string;
@@ -39,6 +40,7 @@ export interface UpdateReservationData {
     notes?: string;
     players?: ReservationPlayer[];
     items?: ReservationItem[];
+    userId?: string | null;
 }
 
 export interface ClubReservation extends Omit<Reservation, 'court' | 'user'> {
@@ -178,7 +180,31 @@ export function useReservations() {
 
     useEffect(() => {
         loadReservations();
-    }, [loadReservations]);
+
+        // Suscripción en tiempo real
+        if (!clubConfig?.id) return;
+
+        const channel = supabase
+            .channel(`reservations-changes-${clubConfig.id}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'reservations',
+                    filter: `club_id=eq.${clubConfig.id}`
+                },
+                (payload) => {
+                    console.log('Realtime update received:', payload);
+                    loadReservations();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [loadReservations, clubConfig?.id, supabase]);
 
     // Crear reserva
     const createReservation = async (data: {
@@ -230,10 +256,10 @@ export function useReservations() {
             setProcessing(false);
             loadReservations(); // Recargar en segundo plano
             return { error: null };
-        } catch (err: any) {
+        } catch (err: unknown) {
             setProcessing(false);
             console.error("Unexpected error creating reservation:", err);
-            return { error: err.message || "Error desconocido" };
+            return { error: (err as Error).message || "Error desconocido" };
         }
     };
 
@@ -247,6 +273,7 @@ export function useReservations() {
             notes?: string;
             players?: ReservationPlayer[];
             items?: ReservationItem[];
+            userId?: string | null;
         }
     ) => {
         if (!clubConfig) return { error: 'No club config' };
@@ -254,13 +281,14 @@ export function useReservations() {
         setProcessing(true);
 
         try {
-            const updateData: any = {};
+            const updateData: Record<string, any> = {};
 
             if (data.courtId) updateData.court_id = data.courtId;
             if (data.price !== undefined) updateData.price = data.price;
             if (data.notes !== undefined) updateData.notes = data.notes;
             if (data.players) updateData.players = data.players.filter(p => p.name.trim() !== '');
             if (data.items) updateData.items = data.items;
+            if (data.userId !== undefined) updateData.user_id = data.userId;
 
             if (data.startTime) {
                 const endTime = new Date(data.startTime);
@@ -281,23 +309,25 @@ export function useReservations() {
                 }
             }
 
-            const { error } = await supabase
+            const { data: updatedRecord, error } = await supabase
                 .from('reservations')
                 .update(updateData)
-                .eq('id', id);
+                .eq('id', id)
+                .select()
+                .single();
 
             if (error) {
                 setProcessing(false);
-                return { error: error.message };
+                return { error: error.message, data: null };
             }
 
             setProcessing(false);
             loadReservations();
-            return { error: null };
-        } catch (err: any) {
+            return { error: null, data: updatedRecord as ClubReservation };
+        } catch (err: unknown) {
             setProcessing(false);
             console.error("Unexpected error updating reservation:", err);
-            return { error: err.message || "Error desconocido" };
+            return { error: (err as Error).message || "Error desconocido" };
         }
     };
 
@@ -319,9 +349,9 @@ export function useReservations() {
             setProcessing(false);
             loadReservations();
             return { error: null };
-        } catch (err: any) {
+        } catch (err: unknown) {
             setProcessing(false);
-            return { error: err.message || "Error al cancelar" };
+            return { error: (err as Error).message || "Error al cancelar" };
         }
     };
 
@@ -329,8 +359,8 @@ export function useReservations() {
     const searchUser = async (query: string) => {
         const { data, error } = await supabase
             .from('profiles')
-            .select('id, display_name, avatar_url')
-            .ilike('display_name', `%${query}%`)
+            .select('id, display_name, email, avatar_url')
+            .or(`display_name.ilike.%${query}%,email.ilike.%${query}%`)
             .limit(5);
 
         if (error) return { data: null, error: error.message };

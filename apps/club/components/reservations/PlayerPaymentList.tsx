@@ -130,7 +130,7 @@ export function PlayerPaymentList({
                             {/* Selector de template individual */}
                             {showTemplates && priceTemplates.length > 0 && (
                                 <select
-                                    className="w-4 h-6 bg-gray-800 border border-gray-600 rounded text-[10px] text-gray-400 outline-none p-0 text-center"
+                                    className="w-5 h-7 bg-gray-950 border border-gray-800 rounded-lg text-[10px] text-gray-500 outline-none p-0 text-center hover:border-gray-600 hover:text-gray-300 transition-all cursor-pointer"
                                     onChange={(e) => {
                                         const val = parseFloat(e.target.value);
                                         if (!isNaN(val)) {
@@ -139,7 +139,7 @@ export function PlayerPaymentList({
                                     }}
                                     value=""
                                 >
-                                    <option value="" disabled>▼</option>
+                                    <option value="" disabled>€</option>
                                     {priceTemplates.map((t, i) => (
                                         <option key={i} value={t.price}>{t.label} ({t.price}€)</option>
                                     ))}

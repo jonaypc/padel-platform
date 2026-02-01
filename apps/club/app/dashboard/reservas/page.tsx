@@ -60,7 +60,7 @@ export default function ReservasPage() {
         return res;
     };
 
-    const handleUpdateConfirm = async (id: string, data: UpdateReservationData) => {
+    const handleUpdateConfirm = async (id: string, data: UpdateReservationData, shouldClose = true) => {
         // Si cambia fecha/hora/pista, validar conflictos
         if (data.startTime || data.courtId) {
             const targetCourt = data.courtId || selectedReservation?.court_id;
@@ -75,7 +75,11 @@ export default function ReservasPage() {
 
         const res = await updateReservation(id, data);
         if (!res.error) {
-            setSelectedReservation(null);
+            if (shouldClose) {
+                setSelectedReservation(null);
+            } else if (res.data) {
+                setSelectedReservation(res.data);
+            }
         }
         return res;
     };
@@ -110,30 +114,41 @@ export default function ReservasPage() {
     return (
         <div className="h-[calc(100dvh-100px)] flex flex-col gap-4">
 
-            {/* Header / Navegación */}
-            <div className="flex justify-between items-center bg-gray-900/50 p-2 rounded-xl border border-gray-700">
-                <h1 className="text-xl font-bold text-white px-2">Reservas</h1>
-                <DateNavigator
-                    currentDate={date}
-                    onDateChange={setDate}
-                    onPrev={() => changeDate(-1)}
-                    onNext={() => changeDate(1)}
-                    onToday={() => setDate(new Date())}
-                />
+            {/* Header / Navegación Premium */}
+            <div className="relative group">
+                <div className="absolute -inset-0.5 bg-linear-to-r from-green-500/20 to-blue-500/20 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-1000"></div>
+                <div className="relative flex flex-col md:flex-row justify-between items-center bg-gray-900/60 backdrop-blur-2xl p-4 rounded-2xl border border-white/10 gap-4 shadow-xl">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2.5 bg-green-500/10 rounded-xl border border-green-500/20 shadow-[0_0_15px_rgba(34,197,94,0.1)]">
+                            <h1 className="text-2xl font-black text-white italic tracking-tighter uppercase leading-none">Reservas</h1>
+                        </div>
+                    </div>
 
-                {/* Leyenda simple */}
-                <div className="hidden md:flex gap-3 text-xs text-gray-400 px-2">
-                    <div className="flex items-center gap-1">
-                        <div className="w-3 h-3 bg-green-900/50 border border-green-800 rounded"></div>
-                        <span>Reserva</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                        <div className="w-3 h-3 bg-red-900/50 border border-red-800 rounded"></div>
-                        <span>Bloqueo</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                        <div className="w-3 h-3 bg-red-600 rounded animate-pulse"></div>
-                        <span>Pago Pendiente (Expirando)</span>
+                    <DateNavigator
+                        currentDate={date}
+                        onDateChange={setDate}
+                        onPrev={() => changeDate(-1)}
+                        onNext={() => changeDate(1)}
+                        onToday={() => setDate(new Date())}
+                    />
+
+                    {/* Leyenda simple Premium */}
+                    <div className="hidden lg:flex gap-4 text-[10px] font-black uppercase tracking-widest text-gray-500 px-2">
+                        <div className="flex items-center gap-1.5">
+                            <div className="w-2.5 h-2.5 bg-green-900/50 border border-green-800 rounded-sm"></div>
+                            <span>Reserva</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <div className="w-2.5 h-2.5 bg-red-900/50 border border-red-800 rounded-sm"></div>
+                            <span>Bloqueo</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <div className="relative w-2.5 h-2.5">
+                                <div className="absolute inset-0 bg-red-600 rounded-sm animate-ping opacity-75"></div>
+                                <div className="relative w-full h-full bg-red-600 rounded-sm"></div>
+                            </div>
+                            <span className="text-red-500">Pendiente</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -171,6 +186,7 @@ export default function ReservasPage() {
                     onClose={() => setSelectedReservation(null)}
                     onUpdate={handleUpdateConfirm}
                     onCancel={handleCancel}
+                    onSearchUser={searchUser}
                     processing={processing}
                 />
             )}

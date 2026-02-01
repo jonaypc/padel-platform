@@ -11,6 +11,13 @@ import {
 import { PlayerPaymentList } from "./PlayerPaymentList";
 import { ExtrasSelector } from "./ExtrasSelector";
 
+interface SearchUser {
+    id: string;
+    display_name: string;
+    email: string;
+    avatar_url?: string;
+}
+
 // Interface para datos de creación
 export interface CreateReservationData {
     courtId: string;
@@ -28,7 +35,7 @@ interface CreateReservationModalProps {
     clubConfig: ClubConfig;
     onClose: () => void;
     onConfirm: (data: CreateReservationData) => Promise<{ error: string | null }>;
-    onSearchUser: (query: string) => Promise<{ data: any[] | null; error: string | null }>;
+    onSearchUser: (query: string) => Promise<{ data: SearchUser[] | null; error: string | null }>;
     processing: boolean;
 }
 
@@ -51,7 +58,7 @@ export function CreateReservationModal({
     const [customerName, setCustomerName] = useState("");
     const [selectedUser, setSelectedUser] = useState<{ id: string, name: string } | null>(null);
     const [userSearchQuery, setUserSearchQuery] = useState("");
-    const [searchResults, setSearchResults] = useState<any[]>([]);
+    const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
     const [isSearching, setIsSearching] = useState(false);
 
     const [price, setPrice] = useState(0);
@@ -101,7 +108,33 @@ export function CreateReservationModal({
         setIsSearching(false);
     };
 
-    const selectUser = (user: any) => {
+    // --- NUEVA LÓGICA DE SINCRONIZACIÓN DE PRECIOS ---
+
+    const handlePlayersChange = (newPlayers: ReservationPlayer[]) => {
+        setPlayers(newPlayers);
+        // El precio total es la suma de los precios individuales de la pista
+        const total = newPlayers.reduce((sum, p) => sum + (p.courtPrice || 0), 0);
+        setPrice(total);
+    };
+
+    const handleTotalManualChange = (newTotal: number) => {
+        setPrice(newTotal);
+        // Redistribuir el total entre los jugadores registrados
+        if (players.length > 0) {
+            const perPlayer = Number((newTotal / players.length).toFixed(2));
+            setPlayers(players.map(p => ({ ...p, courtPrice: perPlayer })));
+        }
+    };
+
+    const applyPriceTemplate = (tplPrice: number) => {
+        // Multiplicar el precio de la plantilla por el número de jugadores 
+        // para obtener el precio total de la pista (según feedback del usuario)
+        const total = tplPrice * players.length;
+        setPrice(total);
+        setPlayers(players.map(p => ({ ...p, courtPrice: tplPrice })));
+    };
+
+    const selectUser = (user: SearchUser) => {
         setSelectedUser({ id: user.id, name: user.display_name });
         setCustomerName(user.display_name); // Para consistencia visual
         setSearchResults([]);
@@ -193,7 +226,7 @@ export function CreateReservationModal({
                     <button
                         onClick={() => setActiveTab('reservation')}
                         className={`flex-1 py-3 text-[10px] font-black rounded-2xl transition-all tracking-widest uppercase ${activeTab === 'reservation'
-                            ? 'bg-gradient-to-r from-green-600 to-green-700 text-white shadow-[0_8px_20px_-6px_rgba(22,163,74,0.5)] ring-1 ring-white/20'
+                            ? 'bg-linear-to-r from-green-600 to-green-700 text-white shadow-[0_8px_20px_-6px_rgba(22,163,74,0.5)] ring-1 ring-white/20'
                             : 'text-gray-500 hover:bg-gray-800 hover:text-gray-300 border border-transparent'
                             }`}
                     >
@@ -202,7 +235,7 @@ export function CreateReservationModal({
                     <button
                         onClick={() => setActiveTab('maintenance')}
                         className={`flex-1 py-3 text-[10px] font-black rounded-2xl transition-all tracking-widest uppercase ${activeTab === 'maintenance'
-                            ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-[0_8px_20px_-6px_rgba(220,38,38,0.5)] ring-1 ring-white/20'
+                            ? 'bg-linear-to-r from-red-600 to-red-700 text-white shadow-[0_8px_20px_-6px_rgba(220,38,38,0.5)] ring-1 ring-white/20'
                             : 'text-gray-500 hover:bg-gray-800 hover:text-gray-300 border border-transparent'
                             }`}
                     >
@@ -211,7 +244,7 @@ export function CreateReservationModal({
                 </div>
 
                 {/* BODY (Scrollable) */}
-                <div className="flex-1 overflow-y-auto p-5 md:p-8 space-y-10 overscroll-contain custom-scrollbar bg-gradient-to-b from-gray-900 to-gray-950">
+                <div className="flex-1 overflow-y-auto p-5 md:p-8 space-y-10 overscroll-contain custom-scrollbar bg-linear-to-b from-gray-900 to-gray-950">
 
                     {activeTab === 'reservation' && (
                         <>
@@ -264,6 +297,11 @@ export function CreateReservationModal({
                                             placeholder="Buscar por nombre o email..."
                                             className="w-full bg-gray-950 border border-gray-800 rounded-2xl py-4 pl-12 pr-4 text-white font-medium focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all shadow-inner placeholder:text-gray-700"
                                         />
+                                        {isSearching && (
+                                            <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                                                <div className="w-5 h-5 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+                                            </div>
+                                        )}
                                         {/* Resultados de búsqueda */}
                                         {searchResults.length > 0 && !selectedUser && (
                                             <div className="absolute top-full left-0 right-0 mt-3 bg-gray-900 border border-gray-700 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-30 max-h-64 overflow-y-auto overflow-x-hidden p-2 ring-1 ring-white/5 animate-in fade-in slide-in-from-top-2 duration-200">
@@ -274,7 +312,7 @@ export function CreateReservationModal({
                                                         type="button"
                                                         className="w-full text-left px-4 py-3 hover:bg-white/5 rounded-xl flex items-center gap-4 transition-all group/item"
                                                     >
-                                                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center text-sm font-black text-white shrink-0 shadow-lg group-hover/item:scale-105 transition-transform">
+                                                        <div className="w-10 h-10 rounded-xl bg-linear-to-br from-blue-600 to-blue-800 flex items-center justify-center text-sm font-black text-white shrink-0 shadow-lg group-hover/item:scale-105 transition-transform">
                                                             {user.display_name?.charAt(0) || 'U'}
                                                         </div>
                                                         <div className="flex-1 min-w-0">
@@ -303,14 +341,14 @@ export function CreateReservationModal({
 
                             {/* PRECIO */}
                             <div className="space-y-4">
-                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Tarifa Aplicada</label>
+                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest leading-none block">Tarifa Aplicada (Total Pista)</label>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div className="relative group">
                                         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 font-black group-focus-within:text-green-500 transition-colors">€</span>
                                         <input
                                             type="number"
                                             value={price}
-                                            onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
+                                            onChange={(e) => handleTotalManualChange(parseFloat(e.target.value) || 0)}
                                             className="w-full bg-gray-950 border border-gray-800 rounded-2xl py-4 pl-10 pr-4 text-white font-mono font-black text-lg focus:border-green-500/50 focus:ring-4 focus:ring-green-500/5 outline-none transition-all shadow-inner"
                                         />
                                     </div>
@@ -319,9 +357,9 @@ export function CreateReservationModal({
                                             <button
                                                 key={i}
                                                 type="button"
-                                                onClick={() => setPrice(tpl.price)}
+                                                onClick={() => applyPriceTemplate(tpl.price)}
                                                 className={`px-4 py-4 rounded-2xl text-[11px] font-black transition-all shrink-0 flex flex-col items-center justify-center min-w-[80px] border
-                                                    ${price === tpl.price
+                                                    ${(price / (players.length || 1)) === tpl.price
                                                         ? 'bg-green-600/10 border-green-500/50 text-green-400 shadow-[0_0_20px_rgba(34,197,94,0.1)]'
                                                         : 'bg-gray-950 border-gray-800 text-gray-500 hover:border-gray-600 hover:text-gray-300'
                                                     }`}
@@ -342,7 +380,7 @@ export function CreateReservationModal({
                                         players={players}
                                         items={items}
                                         priceTemplates={clubConfig.priceTemplates || []}
-                                        onPlayersChange={setPlayers}
+                                        onPlayersChange={handlePlayersChange}
                                         onSearchUser={onSearchUser}
                                         onPayAll={() => {
                                             setPlayers(players.map(p => ({ ...p, paid: true })));
@@ -393,8 +431,8 @@ export function CreateReservationModal({
                         disabled={processing}
                         className={`order-1 md:order-2 flex-2 md:flex-none px-10 py-4 text-xs font-black text-white rounded-2xl shadow-2xl transform active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-3 ring-1 ring-white/10 tracking-widest uppercase
                             ${activeTab === 'reservation'
-                                ? 'bg-gradient-to-br from-green-500 to-green-700 hover:from-green-400 hover:to-green-600 shadow-green-900/40'
-                                : 'bg-gradient-to-br from-red-500 to-red-700 hover:from-red-400 hover:to-red-600 shadow-red-900/40'
+                                ? 'bg-linear-to-br from-green-500 to-green-700 hover:from-green-400 hover:to-green-600 shadow-green-900/40'
+                                : 'bg-linear-to-br from-red-500 to-red-700 hover:from-red-400 hover:to-red-600 shadow-red-900/40'
                             }`}
                     >
                         {processing ? (

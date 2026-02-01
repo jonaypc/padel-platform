@@ -2,10 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { createBrowserClient } from "@padel/supabase";
-import { Save, Clock, Sun, Copy, X } from "lucide-react";
+import {
+    Save, Clock, Sun, Copy, X, Euro,
+    Settings, Calendar, Layout,
+    Zap, Tag, ShoppingBag, Loader2,
+    CheckCircle2, AlertCircle
+} from "lucide-react";
 
 type Shift = { start: string; end: string };
-type WeekSchedule = Record<string, Shift[]>; // Keys: "1" (Mon) -> "7" (Sun)
+type WeekSchedule = Record<string, Shift[]>;
 
 const DAYS = [
     { key: "1", label: "L", name: "Lunes" },
@@ -45,32 +50,17 @@ export default function SettingsPage() {
                 return;
             }
 
-            let { data: members, error } = await supabase
+            const { data: members, error } = await supabase
                 .from('club_members')
-                .select('club_id, clubs(*)')
+                .select('club_id, clubs(id, name, booking_duration, default_price, opening_hour, closing_hour, shifts, extras, price_templates)')
                 .eq('user_id', user.id)
                 .limit(1);
 
-            if (error) {
-                const { data: retryData, error: retryError } = await supabase
-                    .from('club_members')
-                    .select('club_id, clubs(id, name, booking_duration, default_price, opening_hour, closing_hour, shifts, extras, price_templates)')
-                    .eq('user_id', user.id)
-                    .limit(1);
-
-                if (!retryError && retryData) {
-                    members = retryData as any;
-                    error = null;
-                }
-            }
-
             if (!error && members && members.length > 0 && members[0]) {
-                const firstMember = members[0];
-                const clubData = (firstMember as any).clubs;
-                const club = Array.isArray(clubData) ? clubData[0] : clubData;
+                const club = (members[0] as any).clubs;
 
                 if (club) {
-                    setClubId(firstMember.club_id);
+                    setClubId(members[0].club_id);
                     setDuration(club.booking_duration || 90);
                     setDefaultPrice(club.default_price || 0);
                     setOpeningHour(club.opening_hour ?? 8);
@@ -99,17 +89,14 @@ export default function SettingsPage() {
     }, [supabase]);
 
     const handleSave = async () => {
-        if (!clubId) {
-            setMsg({ type: 'error', text: 'No se encontró ID del club.' });
-            return;
-        }
+        if (!clubId) return;
 
         setSaving(true);
         setMsg(null);
 
         try {
-            // Preparar payload con extras limpios (filtrar vacíos)
             const cleanExtras = extras.filter(e => e.name.trim() !== '');
+            const cleanTemplates = priceTemplates.filter(t => t.label.trim() !== '');
 
             const updatePayload = {
                 booking_duration: duration,
@@ -118,28 +105,23 @@ export default function SettingsPage() {
                 closing_hour: closingHour,
                 shifts: useShifts ? schedule : null,
                 extras: cleanExtras,
-                price_templates: priceTemplates.filter(t => t.label.trim() !== '')
+                price_templates: cleanTemplates
             };
 
-            console.log('Guardando configuración:', updatePayload);
-
-            const { data, error } = await supabase
+            const { error } = await supabase
                 .from('clubs')
                 .update(updatePayload)
-                .eq('id', clubId)
-                .select();
-
-            console.log('Respuesta de Supabase:', { data, error });
+                .eq('id', clubId);
 
             if (error) throw error;
 
-            // Actualizar estado local con los extras limpios
             setExtras(cleanExtras);
-
+            setPriceTemplates(cleanTemplates);
             setMsg({ type: 'success', text: 'Configuración guardada correctamente' });
+
+            setTimeout(() => setMsg(null), 3000);
         } catch (err: any) {
-            console.error('Error al guardar:', err);
-            setMsg({ type: 'error', text: 'Error al guardar: ' + (err.message || err.code || 'Error desconocido') });
+            setMsg({ type: 'error', text: 'Error al guardar cambios' });
         } finally {
             setSaving(false);
         }
@@ -168,43 +150,10 @@ export default function SettingsPage() {
     };
 
     const copyToAll = () => {
-        if (!confirm("¿Copiar el horario de " + DAYS.find(d => d.key === selectedDay)?.name + " a TODOS los días de la semana?")) return;
+        if (!confirm("¿Copiar el horario a todos los días?")) return;
         const newSchedule: WeekSchedule = {};
         DAYS.forEach(d => newSchedule[d.key] = [...currentShifts]);
         setSchedule(newSchedule);
-    };
-
-    const addExtra = () => {
-        setExtras([...extras, { name: '', price: 0 }]);
-    };
-
-    const updateExtra = (index: number, field: "name" | "price", value: string | number) => {
-        const newExtras = [...extras];
-        const currentExtra = newExtras[index];
-        if (currentExtra) {
-            newExtras[index] = { ...currentExtra, [field]: value };
-        }
-        setExtras(newExtras);
-    };
-
-    const removeExtra = (index: number) => {
-        setExtras(extras.filter((_, i) => i !== index));
-    };
-
-    const addTemplate = () => {
-        setPriceTemplates([...priceTemplates, { label: '', price: 0 }]);
-    };
-
-    const updateTemplate = (index: number, field: "label" | "price", value: string | number) => {
-        const newTemplates = [...priceTemplates];
-        if (newTemplates[index]) {
-            newTemplates[index] = { ...newTemplates[index], [field]: value };
-        }
-        setPriceTemplates(newTemplates);
-    };
-
-    const removeTemplate = (index: number) => {
-        setPriceTemplates(priceTemplates.filter((_, i) => i !== index));
     };
 
     const timeOptions: string[] = [];
@@ -215,203 +164,333 @@ export default function SettingsPage() {
 
     const hours = Array.from({ length: 24 }, (_, i) => i);
 
-    if (loading) return <div className="flex justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div></div>;
-    if (!clubId) return <div className="p-4 text-center text-gray-400">No tienes acceso a ningún club.</div>;
+    if (loading) {
+        return (
+            <div className="flex flex-col items-center justify-center p-24 space-y-4">
+                <div className="relative">
+                    <div className="w-12 h-12 border-4 border-white/10 border-t-white/40 rounded-full animate-spin" />
+                    <Settings size={20} className="absolute inset-0 m-auto text-white/40" />
+                </div>
+                <p className="text-gray-500 font-medium animate-pulse italic">Cargando configuración...</p>
+            </div>
+        );
+    }
 
     return (
-        <div className="space-y-6 pb-24 text-white">
-            <h1 className="text-2xl font-bold mb-6">Ajustes del Club</h1>
+        <div className="max-w-6xl mx-auto space-y-10 pb-40 text-white px-4 md:px-0">
 
-            <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-                <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 bg-green-900/30 rounded-lg text-green-400"><Clock size={20} /></div>
-                    <h2 className="text-lg font-semibold">Duración de Reservas</h2>
-                </div>
-                <div className="grid grid-cols-3 gap-4">
-                    {[60, 90, 120].map((min) => (
-                        <button
-                            key={min}
-                            onClick={() => setDuration(min)}
-                            className={`py-3 px-4 rounded-xl border font-medium transition-all ${duration === min ? "bg-green-600 border-green-500 text-white shadow-lg shadow-green-900/20" : "bg-gray-900 border-gray-700 text-gray-400 hover:border-gray-600"}`}
-                        >
-                            {min} min
-                        </button>
-                    ))}
-                </div>
-            </div>
-
-            <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-                <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 bg-yellow-900/30 rounded-lg text-yellow-400">💰</div>
-                    <div>
-                        <h2 className="text-lg font-semibold">Precio por Defecto</h2>
-                        <p className="text-xs text-gray-400">Por sesión ({duration} min)</p>
-                    </div>
-                </div>
-                <div className="relative">
-                    <input
-                        type="number"
-                        value={defaultPrice}
-                        onChange={(e) => setDefaultPrice(parseFloat(e.target.value) || 0)}
-                        className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-green-500 font-bold text-xl pr-12"
-                    />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold">€</span>
-                </div>
-            </div>
-
-            <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-                <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 bg-pink-900/30 rounded-lg text-pink-400">🏷️</div>
-                    <div>
-                        <h2 className="text-lg font-semibold">Botones de Precio Rápido</h2>
-                        <p className="text-xs text-gray-400">Define botones para aplicar precios rápidamente (ej: Socio, Liga)</p>
-                    </div>
-                </div>
-                <div className="space-y-3">
-                    {priceTemplates.map((template, idx) => (
-                        <div key={idx} className="flex gap-3 items-center">
-                            <input
-                                type="text"
-                                placeholder="Ej: Socio"
-                                value={template.label}
-                                onChange={(e) => updateTemplate(idx, 'label', e.target.value)}
-                                className="flex-1 bg-gray-900 border border-gray-700 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-green-500 text-sm"
-                            />
-                            <div className="relative w-32">
-                                <input
-                                    type="number"
-                                    step="0.01"
-                                    value={template.price}
-                                    onChange={(e) => updateTemplate(idx, 'price', parseFloat(e.target.value) || 0)}
-                                    className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-green-500 text-sm pr-8"
-                                />
-                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs font-bold">€</span>
+            {/* Header Premium */}
+            <div className="relative group">
+                <div className="absolute -inset-1 bg-linear-to-r from-purple-500/20 to-blue-500/20 rounded-3xl blur opacity-25 group-hover:opacity-40 transition duration-1000"></div>
+                <div className="relative bg-gray-900/40 backdrop-blur-2xl border border-white/10 p-8 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-8 shadow-2xl">
+                    <div className="space-y-3">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-purple-500/10 flex items-center justify-center border border-purple-500/20 shadow-[0_0_20px_rgba(168,85,247,0.1)]">
+                                <Settings size={28} className="text-purple-400" />
                             </div>
-                            <button onClick={() => removeTemplate(idx)} className="p-2 text-red-500 hover:bg-red-900/20 rounded-lg">
-                                <X size={18} />
-                            </button>
+                            <h1 className="text-4xl font-black bg-clip-text text-transparent bg-linear-to-r from-white via-white to-gray-500 tracking-tighter italic">
+                                AJUSTES CLUB
+                            </h1>
                         </div>
-                    ))}
+                        <p className="text-gray-400 text-sm md:text-base font-medium pl-1">
+                            Define las reglas de negocio, horarios y tarifas de tu instalación
+                        </p>
+                    </div>
+
                     <button
-                        onClick={addTemplate}
-                        className="w-full py-2.5 border border-dashed border-gray-600 text-gray-400 rounded-xl hover:border-gray-500 transition text-sm font-medium"
+                        onClick={handleSave}
+                        disabled={saving}
+                        className="group/btn relative overflow-hidden bg-white text-black px-10 py-4 rounded-2xl font-black italic tracking-widest uppercase text-sm transition-all hover:scale-105 active:scale-95 disabled:opacity-50 shadow-[0_0_30px_rgba(255,255,255,0.1)] flex items-center gap-3"
                     >
-                        + Añadir Botón de Precio
+                        {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={20} strokeWidth={3} />}
+                        Guardar Cambios
+                        <div className="absolute inset-0 bg-linear-to-r from-transparent via-black/5 to-transparent -translate-x-full group-hover/btn:animate-shimmer" />
                     </button>
                 </div>
             </div>
 
-            <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-                <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-purple-900/30 rounded-lg text-purple-400">🎒</div>
-                        <div>
-                            <h2 className="text-lg font-semibold">Complementos / Tienda</h2>
-                            <p className="text-xs text-gray-400">Define los precios de productos adicionales</p>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+
+                {/* Columna Izquierda: Configuración Principal */}
+                <div className="lg:col-span-12 space-y-10">
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                        {/* Bloque 1: Duración */}
+                        <div className="bg-gray-900/60 backdrop-blur-xl border border-white/5 rounded-[2.5rem] p-8 shadow-xl space-y-6">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-green-500/10 rounded-2xl border border-green-500/20 text-green-400">
+                                    <Clock size={24} />
+                                </div>
+                                <div>
+                                    <h2 className="text-lg font-black italic text-white uppercase tracking-tight leading-none">DURACIÓN DE RESERVAS</h2>
+                                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">Tiempo Standard por Sesión</p>
+                                </div>
+                            </div>
+
+                            <div className="flex bg-black/40 p-1.5 rounded-2xl border border-white/5 shadow-inner">
+                                {[60, 90, 120].map((min) => (
+                                    <button
+                                        key={min}
+                                        onClick={() => setDuration(min)}
+                                        className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300 ${duration === min ? 'bg-white/10 text-white shadow-lg ring-1 ring-white/20' : 'text-gray-500 hover:text-gray-300'}`}
+                                    >
+                                        <span>{min} min</span>
+                                    </button>
+                                ))}
+                            </div>
                         </div>
-                    </div>
-                </div>
-                <div className="space-y-3">
-                    {extras.map((extra, idx) => (
-                        <div key={idx} className="flex gap-3 items-center">
-                            <input
-                                type="text"
-                                placeholder="Ej: Tubo de bolas"
-                                value={extra.name}
-                                onChange={(e) => updateExtra(idx, 'name', e.target.value)}
-                                className="flex-1 bg-gray-900 border border-gray-700 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-green-500 text-sm"
-                            />
-                            <div className="relative w-32">
+
+                        {/* Bloque 2: Tarifas */}
+                        <div className="bg-gray-900/60 backdrop-blur-xl border border-white/5 rounded-[2.5rem] p-8 shadow-xl space-y-6">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-yellow-500/10 rounded-2xl border border-yellow-500/20 text-yellow-400">
+                                    <Euro size={24} />
+                                </div>
+                                <div>
+                                    <h2 className="text-lg font-black italic text-white uppercase tracking-tight leading-none">PRECIO POR DEFECTO</h2>
+                                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">Tarifa base para jugadores</p>
+                                </div>
+                            </div>
+
+                            <div className="relative group">
                                 <input
                                     type="number"
-                                    step="0.01"
-                                    value={extra.price}
-                                    onChange={(e) => updateExtra(idx, 'price', parseFloat(e.target.value) || 0)}
-                                    className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-green-500 text-sm pr-8"
+                                    value={defaultPrice}
+                                    onChange={(e) => setDefaultPrice(parseFloat(e.target.value) || 0)}
+                                    className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-4 text-3xl font-black text-white outline-none focus:border-yellow-500/30 transition-all text-center italic tracking-tighter shadow-inner"
                                 />
-                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs font-bold">€</span>
+                                <span className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-600 font-black italic text-xl">€</span>
                             </div>
-                            <button onClick={() => removeExtra(idx)} className="p-2 text-red-500 hover:bg-red-900/20 rounded-lg">
-                                <X size={18} />
-                            </button>
                         </div>
-                    ))}
-                    <button
-                        onClick={addExtra}
-                        className="w-full py-2.5 border border-dashed border-gray-600 text-gray-400 rounded-xl hover:border-gray-500 transition text-sm font-medium"
-                    >
-                        + Añadir Complemento
-                    </button>
-                </div>
-            </div>
+                    </div>
 
-            <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-                <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-blue-900/30 rounded-lg text-blue-400"><Sun size={20} /></div>
-                        <h2 className="text-lg font-semibold">Horario Semanal</h2>
-                    </div>
-                    <div className="flex bg-gray-900 rounded-lg p-1 border border-gray-700">
-                        <button onClick={() => setUseShifts(false)} className={`px-3 py-1.5 text-xs font-medium rounded-md transition ${!useShifts ? 'bg-gray-700 text-white shadow' : 'text-gray-400'}`}>Simple</button>
-                        <button onClick={() => setUseShifts(true)} className={`px-3 py-1.5 text-xs font-medium rounded-md transition ${useShifts ? 'bg-blue-600 text-white shadow' : 'text-gray-400'}`}>Por Días</button>
-                    </div>
-                </div>
-
-                {!useShifts ? (
-                    <div className="grid grid-cols-2 gap-6">
-                        <div>
-                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Apertura</label>
-                            <select value={openingHour} onChange={(e) => setOpeningHour(parseInt(e.target.value))} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white">
-                                {hours.map((h) => <option key={h} value={h}>{h.toString().padStart(2, '0')}:00</option>)}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Cierre</label>
-                            <select value={closingHour} onChange={(e) => setClosingHour(parseInt(e.target.value))} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white">
-                                {hours.map((h) => <option key={h} value={h}>{h.toString().padStart(2, '0')}:00</option>)}
-                            </select>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="space-y-6">
-                        <div className="flex justify-between bg-gray-900 p-1 rounded-xl">
-                            {DAYS.map(day => (
-                                <button key={day.key} onClick={() => setSelectedDay(day.key)} className={`flex-1 py-2 rounded-lg text-sm font-bold transition ${selectedDay === day.key ? "bg-gray-700 text-white shadow" : "text-gray-500"}`}>{day.label}</button>
-                            ))}
-                        </div>
-                        <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-700/50">
-                            <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-white font-medium">{DAYS.find(d => d.key === selectedDay)?.name}</h3>
-                                <button onClick={copyToAll} className="flex items-center gap-1 text-xs text-blue-400"><Copy size={12} /> Copiar a todos</button>
+                    {/* Bloque 3: Horarios (Full Width) */}
+                    <div className="bg-gray-900/60 backdrop-blur-xl border border-white/5 rounded-[2.5rem] p-8 shadow-xl space-y-8">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-blue-500/10 rounded-2xl border border-blue-500/20 text-blue-400">
+                                    <Sun size={24} />
+                                </div>
+                                <div>
+                                    <h2 className="text-lg font-black italic text-white uppercase tracking-tight leading-none">PLANIFICACIÓN HORARIA</h2>
+                                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">Define cuándo abre el club</p>
+                                </div>
                             </div>
-                            <div className="space-y-3">
-                                {currentShifts.map((shift, i) => (
-                                    <div key={i} className="flex items-center gap-2">
-                                        <select value={shift.start} onChange={(e) => updateShift(i, 'start', e.target.value)} className="bg-gray-800 border border-gray-600 rounded-lg px-2 py-2 text-white text-sm">
-                                            {timeOptions.map(t => <option key={t} value={t}>{t}</option>)}
-                                        </select>
-                                        <span className="text-gray-500 text-sm">a</span>
-                                        <select value={shift.end} onChange={(e) => updateShift(i, 'end', e.target.value)} className="bg-gray-800 border border-gray-600 rounded-lg px-2 py-2 text-white text-sm">
-                                            {timeOptions.map(t => <option key={t} value={t}>{t}</option>)}
-                                        </select>
-                                        <button onClick={() => removeShift(i)} className="p-2 text-red-500 ml-auto">✕</button>
+
+                            <div className="flex bg-black/40 p-1 rounded-2xl border border-white/5 self-start md:self-center shadow-inner">
+                                <button
+                                    onClick={() => setUseShifts(false)}
+                                    className={`px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 ${!useShifts ? 'bg-white/10 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
+                                >
+                                    Fijo
+                                </button>
+                                <button
+                                    onClick={() => setUseShifts(true)}
+                                    className={`px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 ${useShifts ? 'bg-blue-600/50 text-white shadow-lg' : 'text-gray-500 hover:text-blue-400'}`}
+                                >
+                                    Dinámico
+                                </button>
+                            </div>
+                        </div>
+
+                        {!useShifts ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in duration-500">
+                                <div className="space-y-3">
+                                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest italic ml-2">Apertura Global</label>
+                                    <select
+                                        value={openingHour}
+                                        onChange={(e) => setOpeningHour(parseInt(e.target.value))}
+                                        className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white font-bold outline-none cursor-pointer hover:border-white/20 transition-all shadow-inner"
+                                    >
+                                        {hours.map((h) => <option key={h} value={h} className="bg-gray-900">{h.toString().padStart(2, '0')}:00</option>)}
+                                    </select>
+                                </div>
+                                <div className="space-y-3">
+                                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest italic ml-2">Cierre Global</label>
+                                    <select
+                                        value={closingHour}
+                                        onChange={(e) => setClosingHour(parseInt(e.target.value))}
+                                        className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white font-bold outline-none cursor-pointer hover:border-white/20 transition-all shadow-inner"
+                                    >
+                                        {hours.map((h) => <option key={h} value={h} className="bg-gray-900">{h.toString().padStart(2, '0')}:00</option>)}
+                                    </select>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="space-y-8 animate-in slide-in-from-top-4 duration-500">
+                                <div className="grid grid-cols-7 gap-2 bg-black/40 p-1.5 rounded-2xl border border-white/5 shadow-inner">
+                                    {DAYS.map(day => (
+                                        <button
+                                            key={day.key}
+                                            onClick={() => setSelectedDay(day.key)}
+                                            className={`py-3 rounded-xl text-xs font-black uppercase transition-all duration-300 ${selectedDay === day.key ? "bg-blue-600 shadow-[0_0_20px_rgba(37,99,235,0.3)] text-white" : "text-gray-500 hover:text-white"}`}
+                                        >
+                                            {day.label}
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="bg-black/20 rounded-[2rem] p-8 border border-white/5 space-y-6">
+                                    <div className="flex justify-between items-center">
+                                        <h3 className="text-xl font-black text-white italic tracking-tight italic uppercase">{DAYS.find(d => d.key === selectedDay)?.name}</h3>
+                                        <button
+                                            onClick={copyToAll}
+                                            className="flex items-center gap-2 text-[10px] font-black text-blue-400 uppercase tracking-widest hover:text-blue-300 transition group"
+                                        >
+                                            <Copy size={12} className="group-hover:rotate-12 transition-transform" />
+                                            Copiar a todos
+                                        </button>
+                                    </div>
+                                    <div className="grid gap-4">
+                                        {currentShifts.map((shift, i) => (
+                                            <div key={i} className="flex items-center gap-4 bg-gray-900/40 p-3 rounded-2xl border border-white/5 group-hover:border-white/10 transition-all">
+                                                <div className="flex-1 flex items-center gap-3">
+                                                    <select
+                                                        value={shift.start}
+                                                        onChange={(e) => updateShift(i, 'start', e.target.value)}
+                                                        className="flex-1 bg-black/40 border border-white/5 rounded-xl px-4 py-3 text-white text-sm font-bold outline-none cursor-pointer hover:border-blue-500/30 transition-all"
+                                                    >
+                                                        {timeOptions.map(t => <option key={t} value={t} className="bg-gray-900">{t}</option>)}
+                                                    </select>
+                                                    <span className="text-gray-700 italic font-black">al</span>
+                                                    <select
+                                                        value={shift.end}
+                                                        onChange={(e) => updateShift(i, 'end', e.target.value)}
+                                                        className="flex-1 bg-black/40 border border-white/5 rounded-xl px-4 py-3 text-white text-sm font-bold outline-none cursor-pointer hover:border-blue-500/30 transition-all"
+                                                    >
+                                                        {timeOptions.map(t => <option key={t} value={t} className="bg-gray-900">{t}</option>)}
+                                                    </select>
+                                                </div>
+                                                <button
+                                                    onClick={() => removeShift(i)}
+                                                    className="p-3 text-red-500/50 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all"
+                                                >
+                                                    <X size={18} />
+                                                </button>
+                                            </div>
+                                        ))}
+                                        <button
+                                            onClick={addShift}
+                                            className="w-full py-4 border border-dashed border-white/10 text-gray-500 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:border-blue-500/30 hover:text-blue-400 transition-all duration-300"
+                                        >
+                                            + Añadir Nueva Franja
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Bloque 4: Precios Rápidos y Complementos (Grid) */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                        {/* Precios Rápidos */}
+                        <div className="bg-gray-900/60 backdrop-blur-xl border border-white/5 rounded-[2.5rem] p-8 shadow-xl space-y-6">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-pink-500/10 rounded-2xl border border-pink-500/20 text-pink-400">
+                                    <Tag size={24} />
+                                </div>
+                                <div>
+                                    <h2 className="text-lg font-black italic text-white uppercase tracking-tight leading-none">ACCESOS PRECIO</h2>
+                                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">Botones de tarifa instantánea</p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                {priceTemplates.map((template, idx) => (
+                                    <div key={idx} className="flex gap-3 items-center group/item animate-in slide-in-from-right-4 duration-300" style={{ animationDelay: `${idx * 100}ms` }}>
+                                        <input
+                                            type="text"
+                                            placeholder="Ej: Socio"
+                                            value={template.label}
+                                            onChange={(e) => updateTemplate(idx, 'label', e.target.value)}
+                                            className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-pink-500/30 transition-all font-bold text-sm shadow-inner"
+                                        />
+                                        <div className="relative w-28">
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                value={template.price}
+                                                onChange={(e) => updateTemplate(idx, 'price', parseFloat(e.target.value) || 0)}
+                                                className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-pink-500/30 transition-all font-black text-center text-sm shadow-inner"
+                                            />
+                                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-700 italic font-black text-[10px]">€</span>
+                                        </div>
+                                        <button
+                                            onClick={() => removeTemplate(idx)}
+                                            className="p-3 text-gray-600 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all"
+                                        >
+                                            <X size={16} />
+                                        </button>
                                     </div>
                                 ))}
-                                <button onClick={addShift} className="w-full py-2 border border-dashed border-gray-600 text-gray-400 rounded-xl text-sm font-medium hover:text-gray-200">+ Añadir Franja</button>
+                                <button
+                                    onClick={addTemplate}
+                                    className="w-full py-3.5 border border-dashed border-white/10 text-gray-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:border-pink-500/30 hover:text-pink-400 transition-all"
+                                >
+                                    + Añadir Botón de Tarifa
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Complementos */}
+                        <div className="bg-gray-900/60 backdrop-blur-xl border border-white/5 rounded-[2.5rem] p-8 shadow-xl space-y-6">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-orange-500/10 rounded-2xl border border-orange-500/20 text-orange-400">
+                                    <ShoppingBag size={24} />
+                                </div>
+                                <div>
+                                    <h2 className="text-lg font-black italic text-white uppercase tracking-tight leading-none">EXTRAS & TIENDA</h2>
+                                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">Alquiler de palas, bolas, etc.</p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                {extras.map((extra, idx) => (
+                                    <div key={idx} className="flex gap-3 items-center group/item animate-in slide-in-from-right-4 duration-300" style={{ animationDelay: `${idx * 100}ms` }}>
+                                        <input
+                                            type="text"
+                                            placeholder="Ej: Alquiler Pala"
+                                            value={extra.name}
+                                            onChange={(e) => updateExtra(idx, 'name', e.target.value)}
+                                            className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-orange-500/30 transition-all font-bold text-sm shadow-inner"
+                                        />
+                                        <div className="relative w-28">
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                value={extra.price}
+                                                onChange={(e) => updateExtra(idx, 'price', parseFloat(e.target.value) || 0)}
+                                                className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-orange-500/30 transition-all font-black text-center text-sm shadow-inner"
+                                            />
+                                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-700 italic font-black text-[10px]">€</span>
+                                        </div>
+                                        <button
+                                            onClick={() => removeExtra(idx)}
+                                            className="p-3 text-gray-600 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all"
+                                        >
+                                            <X size={16} />
+                                        </button>
+                                    </div>
+                                ))}
+                                <button
+                                    onClick={addExtra}
+                                    className="w-full py-3.5 border border-dashed border-white/10 text-gray-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:border-orange-500/30 hover:text-orange-400 transition-all"
+                                >
+                                    + Añadir Complemento
+                                </button>
                             </div>
                         </div>
                     </div>
-                )}
+
+                </div>
             </div>
 
-            <div className="flex items-center justify-end pt-4">
-                <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 bg-green-600 hover:bg-green-500 text-white px-8 py-3 rounded-xl font-bold disabled:opacity-50 transition shadow-lg">
-                    {saving ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <Save size={18} />}
-                    Guardar Cambios
-                </button>
-            </div>
-
-            {msg && <div className={`p-4 rounded-xl text-sm ${msg.type === 'success' ? 'bg-green-900/30 text-green-400 border border-green-800' : 'bg-red-900/30 text-red-400 border border-red-800'}`}>{msg.text}</div>}
+            {/* Toaster Feedback Premium */}
+            {msg && (
+                <div className={`fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3 px-8 py-4 rounded-2xl shadow-2xl animate-in slide-in-from-bottom-10 duration-500 backdrop-blur-3xl border ${msg.type === 'success' ? 'bg-green-500/20 border-green-500/30 text-green-400' : 'bg-red-500/20 border-red-500/30 text-red-500'}`}>
+                    {msg.type === 'success' ? <CheckCircle2 size={20} className="animate-pulse" /> : <AlertCircle size={20} />}
+                    <span className="font-black italic uppercase tracking-widest text-xs">{msg.text}</span>
+                </div>
+            )}
         </div>
     );
 }

@@ -25,60 +25,74 @@ export default function MyReservationsPage() {
     const [reservations, setReservations] = useState<Reservation[]>([]);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        async function loadReservations() {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) {
-                setLoading(false); // Ensure loading is set to false even if no user
-                return;
-            }
-
-            const selectFields = `
-            id, 
-            start_time, 
-            end_time, 
-            status,
-            clubs (name, location),
-            courts (name)
-            `;
-
-            // 1. Reservas donde soy el dueño
-            const ownedPromise = supabase
-                .from('reservations')
-                .select(selectFields)
-                .eq('user_id', user.id)
-                .in('type', ['booking', 'match'])
-                .order('start_time', { ascending: true });
-
-            // 2. Reservas donde soy jugador invitado
-            const participatingPromise = supabase
-                .from('reservations')
-                .select(selectFields)
-                .contains('players', [{ id: user.id }])
-                .in('type', ['booking', 'match'])
-                .order('start_time', { ascending: true });
-
-            const [ownedRes, participatingRes] = await Promise.all([ownedPromise, participatingPromise]);
-
-            const owned = ownedRes.data || [];
-            const participating = participatingRes.data || [];
-
-            // Combinar y eliminar duplicados por ID
-            const allReservationsMap = new Map();
-            [...owned, ...participating].forEach((r: any) => {
-                allReservationsMap.set(r.id, r);
-            });
-
-            const allReservations = Array.from(allReservationsMap.values());
-
-            // Ordenar por fecha
-            allReservations.sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
-
-            setReservations(allReservations);
+    const loadReservations = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
             setLoading(false);
+            return;
         }
 
+        const selectFields = `
+        id, 
+        start_time, 
+        end_time, 
+        status,
+        type,
+        players,
+        user_id,
+        clubs (name, location),
+        courts (name)
+        `;
+
+        // Consultamos reservas donde soy dueño o participante
+        const { data, error } = await supabase
+            .from('reservations')
+            .select(selectFields)
+            .or(`user_id.eq.${user.id},players.cs.[{"id":"${user.id}"}]`)
+            .in('type', ['booking', 'match'])
+            .order('start_time', { ascending: true });
+
+        if (error) {
+            console.error("Error loading reservations:", error);
+        } else {
+            // Transformamos datos si vienen como arrays por el join
+            const transformed = (data || []).map((r: any) => ({
+                ...r,
+                clubs: Array.isArray(r.clubs) ? r.clubs[0] : r.clubs,
+                courts: Array.isArray(r.courts) ? r.courts[0] : r.courts
+            }));
+
+            // Filtrado estricto: Solo mostramos si el usuario está en la lista de jugadores
+            // Esto cumple la petición: "Si se saca del partido que no le salga mas"
+            const filtered = transformed.filter((r: any) => {
+                const isPlayer = r.players?.some((p: any) => p.id === user.id);
+                return isPlayer;
+            });
+
+            setReservations(filtered as Reservation[]);
+        }
+        setLoading(false);
+    };
+
+    useEffect(() => {
         loadReservations();
+
+        // Suscripción Realtime para actualizaciones globales de mis reservas
+        // Escuchamos cualquier cambio en la tabla reservations
+        const channel = supabase
+            .channel('my-reservations-realtime')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'reservations' },
+                () => {
+                    loadReservations();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, []);
 
     // Usar referencia de tiempo fijada al cargar las reservas para evitar funciones impuras
@@ -108,7 +122,9 @@ export default function MyReservationsPage() {
                             {futureReservations.length > 0 ? (
                                 <div className="space-y-4">
                                     {futureReservations.map(res => (
-                                        <ReservationCard key={res.id} reservation={res} />
+                                        <Link key={res.id} href={`/reservations/${res.id}`}>
+                                            <ReservationCard reservation={res} />
+                                        </Link>
                                     ))}
                                 </div>
                             ) : (
